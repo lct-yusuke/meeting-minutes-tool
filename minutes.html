@@ -118,9 +118,6 @@
     <script>
         // --- 設定 ---
         const GEMINI_API_KEY = "AIzaSyDOd05QUw1cvYHaWKBbFUjeyGGill6bApQ";
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        // ★ 以下のドメインを、貴社のGoogle Workspaceドメインに変更してください ★
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         const ALLOWED_DOMAIN = "lct.jp"; 
 
         // --- DOM要素 ---
@@ -147,21 +144,27 @@
         let recordingStartTime;
 
         // --- 認証機能 ---
-        function handleSignIn(response) {
-            const userObject = jwt_decode(response.credential);
-            console.log("ログイン試行:", userObject.email);
+        // Googleのライブラリがグローバルスコープでこの関数を呼び出すため、windowオブジェクトにアタッチします。
+        window.handleSignIn = function(response) {
+            try {
+                const userObject = jwt_decode(response.credential);
+                console.log("ログイン試行:", userObject.email);
 
-            if (userObject.email.endsWith('@' + ALLOWED_DOMAIN)) {
-                console.log("認証成功");
-                loginContainer.classList.add('hidden');
-                mainAppContainer.classList.remove('hidden');
-            } else {
-                console.log("認証失敗: ドメインが一致しません");
+                if (userObject.email && userObject.email.endsWith('@' + ALLOWED_DOMAIN)) {
+                    console.log("認証成功");
+                    loginContainer.classList.add('hidden');
+                    mainAppContainer.classList.remove('hidden');
+                } else {
+                    console.log("認証失敗: ドメインが一致しません");
+                    authError.classList.remove('hidden');
+                    google.accounts.id.disableAutoSelect();
+                }
+            } catch (error) {
+                console.error("サインイン処理中にエラー:", error);
+                authError.textContent = "ログイン処理中にエラーが発生しました。";
                 authError.classList.remove('hidden');
-                // 不正なドメインのユーザーが自動ログインしないようにする
-                google.accounts.id.disableAutoSelect();
             }
-        }
+        };
 
         // --- 初期化 ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
