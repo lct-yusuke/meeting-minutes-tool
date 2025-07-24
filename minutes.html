@@ -41,9 +41,9 @@
         }
     </style>
 </head>
-<body class="bg-white text-gray-800 flex items-center justify-center min-h-screen p-4">
+<body class="bg-white text-gray-800 p-4">
 
-    <div class="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
+    <div class="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
         <!-- ヘッダー -->
         <header class="text-center">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">AI議事録作成ツール</h1>
@@ -185,6 +185,27 @@
         const extractTasksButton = document.getElementById('extractTasksButton');
         const suggestAgendaButton = document.getElementById('suggestAgendaButton');
 
+        // --- Google API Functions ---
+        // These functions are attached to the window object to ensure they are globally available
+        // when the Google API scripts load asynchronously.
+        window.gapiLoaded = function() {
+            gapi.load('client', initializeGapiClient);
+        }
+        async function initializeGapiClient() {
+            await gapi.client.init({ discoveryDocs: DISCOVERY_DOCS });
+            gapiInited = true;
+            maybeEnableGoogleButton();
+        }
+        window.gisLoaded = function() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '',
+            });
+            gisInited = true;
+            maybeEnableGoogleButton();
+        }
+
         // --- Web Speech APIの準備 ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         
@@ -277,24 +298,6 @@
             updateStatus('idle');
         }
 
-        // --- Google API Functions ---
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-        async function initializeGapiClient() {
-            await gapi.client.init({ discoveryDocs: DISCOVERY_DOCS });
-            gapiInited = true;
-            maybeEnableGoogleButton();
-        }
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '',
-            });
-            gisInited = true;
-            maybeEnableGoogleButton();
-        }
         function maybeEnableGoogleButton() {
             if (gapiInited && generatedMinutesText.value.trim().length > 0) {
                  sendToGoogleDocsButton.classList.remove('hidden');
