@@ -56,8 +56,8 @@
             <ol class="list-decimal list-inside space-y-1">
                 <li>参加者を入力し、「録音開始」ボタンを押します。</li>
                 <li>会議終了後、「録音停止」→「議事録を作成」ボタンを押します。</li>
-                <li>「AI分析ツール」から、要約の作成やタスクの抽出など、追加機能を利用できます。</li>
-                <li>「Googleドキュメントに送信」ボタンで、議事録を保存できます。</li>
+                <li>「AI分析ツール」や「Googleドキュメントに送信」機能を利用できます。</li>
+                <li>「リセット」ボタンで初期状態に戻ります。</li>
             </ol>
         </div>
 
@@ -67,11 +67,14 @@
                 <button id="startButton" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none">
                     <i class="fas fa-microphone-alt mr-2"></i>録音開始
                 </button>
-                <button id="stopButton" class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none" disabled>
+                <button id="stopButton" class="hidden px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none">
                     <i class="fas fa-stop-circle mr-2"></i>録音停止
                 </button>
                 <button id="createMinutesButton" class="hidden px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">
                     <i class="fas fa-file-alt mr-2"></i>議事録を作成
+                </button>
+                 <button id="resetButton" class="hidden px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 transition-transform transform hover:scale-105">
+                    <i class="fas fa-sync-alt mr-2"></i>リセット
                 </button>
             </div>
             <div id="status" class="status-badge flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium">
@@ -155,6 +158,7 @@
 
         // --- Google API Configuration ---
         const CLIENT_ID = '608279178775-sqmc0n5qimmlblnenfbtin66knofd7go.apps.googleusercontent.com';
+        const GEMINI_API_KEY = "AIzaSyDOd05QUw1cvYHaWKBbFUjeyGGill6bApQ";
         const DISCOVERY_DOCS = ["https://docs.googleapis.com/$discovery/rest?version=v1"];
         const SCOPES = "https://www.googleapis.com/auth/documents";
 
@@ -162,6 +166,7 @@
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         const createMinutesButton = document.getElementById('createMinutesButton');
+        const resetButton = document.getElementById('resetButton');
         const resultText = document.getElementById('resultText');
         const statusElement = document.getElementById('status');
         const copyRawButton = document.getElementById('copyRawButton');
@@ -203,49 +208,36 @@
             };
             recognition.onstart = () => {
                 updateStatus('recording');
-                startButton.disabled = true;
-                stopButton.disabled = false;
+                startButton.classList.add('hidden');
+                stopButton.classList.remove('hidden');
+                resetButton.classList.add('hidden');
                 createMinutesButton.classList.add('hidden');
             };
             recognition.onend = () => {
+                updateStatus('finished');
+                stopButton.classList.add('hidden');
                 if (resultText.value.trim().length > 0) {
-                    updateStatus('finished');
                     createMinutesButton.classList.remove('hidden');
-                    startButton.innerHTML = '<i class="fas fa-plus mr-2"></i>新規録音';
-                } else {
-                    updateStatus('idle');
-                    startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音開始';
                 }
-                startButton.disabled = false;
-                stopButton.disabled = true;
+                resetButton.classList.remove('hidden');
             };
             recognition.onerror = (event) => {
                 console.error('Speech Recognition Error:', event.error, event.message);
                 let userMessage = `音声認識エラー: ${event.error}`;
                 if (event.error === 'not-allowed') {
                     userMessage = 'マイクの使用が許可されていません。';
-                    resultText.value = 'マイクへのアクセスがブロックされました。\n\nブラウザやOSのマイク設定を確認し、このサイトでのマイクの使用を許可してください。';
+                    resultText.value = 'マイクへのアクセスがブロックされました。\n\nブラウザやOSのマイク設定、またこのツールを埋め込んでいるサイトのiframe設定（allow="microphone"）を確認してください。';
                 } else if (event.error === 'no-speech') {
                     userMessage = '音声が検出されませんでした。';
                 }
                 updateStatus('error', userMessage);
                 showFeedback('error', userMessage);
-                startButton.disabled = false;
-                stopButton.disabled = true;
-                startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音開始';
+                resetUI();
             };
 
             startButton.addEventListener('click', () => {
                 finalTranscript = '';
                 resultText.value = '';
-                generatedMinutesText.value = '';
-                minutesContainer.classList.add('hidden');
-                aiToolsContainer.classList.add('hidden');
-                aiToolsOutput.innerHTML = '';
-                createMinutesButton.classList.add('hidden');
-                sendToGoogleDocsButton.classList.add('hidden');
-                googleDocsFeedback.innerHTML = '';
-                startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音開始';
                 recordingStartTime = new Date();
                 try {
                     recognition.start();
@@ -257,11 +249,32 @@
 
             stopButton.addEventListener('click', () => recognition.stop());
             createMinutesButton.addEventListener('click', generateMinutes);
+            resetButton.addEventListener('click', resetUI);
 
         } else {
             updateStatus('error', 'ブラウザ非対応');
             startButton.disabled = true;
             resultText.value = '申し訳ありませんが、お使いのブラウザは音声認識機能に対応していません。';
+        }
+
+        function resetUI() {
+            finalTranscript = '';
+            attendeesInput.value = '';
+            resultText.value = '';
+            generatedMinutesText.value = '';
+            
+            minutesContainer.classList.add('hidden');
+            aiToolsContainer.classList.add('hidden');
+            aiToolsOutput.innerHTML = '';
+            googleDocsFeedback.innerHTML = '';
+
+            startButton.classList.remove('hidden');
+            stopButton.classList.add('hidden');
+            createMinutesButton.classList.add('hidden');
+            resetButton.classList.add('hidden');
+            sendToGoogleDocsButton.classList.add('hidden');
+            
+            updateStatus('idle');
         }
 
         // --- Google API Functions ---
@@ -326,8 +339,7 @@
             try {
                 let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                 const payload = { contents: chatHistory };
-                const geminiApiKey = ""; 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -396,8 +408,7 @@ ${rawText}
             try {
                 let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                 const payload = { contents: chatHistory };
-                const geminiApiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -421,7 +432,7 @@ ${rawText}
                 }
             } catch (error) {
                 generatedMinutesText.value = '議事録の生成中にエラーが発生しました。\n' + error.message;
-                showFeedback('error');
+                showFeedback('error', generatedMinutesText.value);
             } finally {
                 loadingSpinner.classList.add('hidden');
                 createMinutesButton.disabled = false;
