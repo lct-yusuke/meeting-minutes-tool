@@ -40,7 +40,7 @@
         <div id="g_id_onload"
              data-client_id="608279178775-sqmc0n5qimmlblnenfbtin66knofd7go.apps.googleusercontent.com"
              data-callback="handleSignIn"
-             data-auto_prompt="false">
+             data-auto_prompt="true">
         </div>
         <div class="g_id_signin mt-8"
              data-type="standard"
@@ -90,8 +90,12 @@
                 <input type="text" id="clientCompany" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 株式会社サンプル">
             </div>
             <div>
-                <label for="attendees" class="block text-lg font-medium mb-2">会議参加者 (コンマ区切り)</label>
-                <input type="text" id="attendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 山田太郎 (自社), 鈴木花子 (株式会社サンプル)">
+                <label for="clientAttendees" class="block text-lg font-medium mb-2">相手の会社の参加者 (コンマ区切り)</label>
+                <input type="text" id="clientAttendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 鈴木花子">
+            </div>
+            <div>
+                <label for="ourAttendees" class="block text-lg font-medium mb-2">自社(リクト)の参加者 (コンマ区切り)</label>
+                <input type="text" id="ourAttendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 山田太郎">
             </div>
             <button id="generateButton" class="w-full px-6 py-4 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 flex items-center justify-center">
                 <i class="fas fa-file-alt mr-2"></i>AIで議事録を作成
@@ -143,7 +147,8 @@
         const resetButton = document.getElementById('resetButton');
         const transcriptionText = document.getElementById('transcriptionText');
         const clientCompany = document.getElementById('clientCompany');
-        const attendees = document.getElementById('attendees');
+        const clientAttendees = document.getElementById('clientAttendees');
+        const ourAttendees = document.getElementById('ourAttendees');
         const statusElement = document.getElementById('status');
         const generationForm = document.getElementById('generationForm');
         const minutesContainer = document.getElementById('minutesContainer');
@@ -201,8 +206,10 @@
                 scope: GAPI_SCOPES,
                 callback: async (resp) => {
                     if (resp.error !== undefined) {
+                        googleDocsFeedback.textContent = `❌ 認証エラー: ${resp.error}`;
                         throw (resp);
                     }
+                    gapi.client.setToken(resp);
                     googleDocsFeedback.textContent = 'Googleドキュメントを作成中...';
                     await createGoogleDoc();
                 },
@@ -217,21 +224,17 @@
 
         async function createGoogleDoc() {
             try {
-                // 1. Generate summary for the title
                 googleDocsFeedback.textContent = '概要を生成中...';
                 const summaryPrompt = `以下の議事録の要点を、ファイル名に使えるように20文字以内の短いタイトルで要約してください。例: 「新製品の販売戦略について」\n\n---\n${generatedMinutesText.value}`;
                 const summary = await callGeminiAPI(summaryPrompt);
 
-                // 2. Format the date and company name
                 const date = recordingStartTime;
                 const yymmdd = date.getFullYear().toString().slice(-2) + ('0' + (date.getMonth() + 1)).slice(-2) + ('0' + date.getDate()).slice(-2);
                 const company = clientCompany.value || '社外打合せ';
                 
-                // 3. Construct the title
                 const docTitle = `${yymmdd}_${company}_${summary.replace(/\n/g, '')}`;
                 googleDocsFeedback.textContent = 'ドキュメントを作成中...';
                 
-                // 4. Create the Google Doc
                 const createResponse = await gapi.client.docs.documents.create({ title: docTitle });
                 const docId = createResponse.result.documentId;
                 await gapi.client.docs.documents.batchUpdate({
@@ -321,6 +324,8 @@
             transcriptionText.value = '';
             attendees.value = '';
             clientCompany.value = '';
+            clientAttendees.value = '';
+            ourAttendees.value = '';
             generatedMinutesText.value = '';
             finalTranscript = '';
             minutesContainer.classList.add('hidden');
@@ -333,8 +338,7 @@
         });
 
         generateButton.addEventListener('click', async () => {
-            const transcript = transcriptionText.value;
-            const participantList = attendees.value;
+            let transcript = transcriptionText.value;
             if (!transcript.trim()) {
                 alert('文字起こしされたテキストがありません。');
                 return;
@@ -343,6 +347,9 @@
             loadingSpinner.classList.remove('hidden');
             generatedMinutesText.value = '';
             generateButton.disabled = true;
+
+            // ★★★ 「ぞうほう」を「Zoho」に置換 ★★★
+            transcript = transcript.replace(/ぞうほう/g, 'Zoho');
 
             const formattedStartTime = recordingStartTime.toLocaleString('ja-JP', {
                 year: 'numeric', month: '2-digit', day: '2-digit',
@@ -354,7 +361,8 @@
 # 会議情報
 - 日時: ${formattedStartTime}
 - 会社名: ${clientCompany.value || '記載なし'}
-- 参加者: ${participantList || '記載なし'}
+- 参加者 (相手先): ${clientAttendees.value || '記載なし'}
+- 参加者 (自社): ${ourAttendees.value || '記載なし'}
 
 # 文字起こしテキスト
 ---
@@ -386,7 +394,8 @@ ${transcript}
             } finally {
                 loadingSpinner.classList.add('hidden');
                 generateButton.disabled = false;
-                generationForm.classList.add('hidden');
+                // ★★★ フォームを非表示にしない ★★★
+                // generationForm.classList.add('hidden');
             }
         });
         
