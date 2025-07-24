@@ -40,7 +40,7 @@
         <div id="g_id_onload"
              data-client_id="608279178775-sqmc0n5qimmlblnenfbtin66knofd7go.apps.googleusercontent.com"
              data-callback="handleSignIn"
-             data-auto_prompt="true">
+             data-auto_prompt="false">
         </div>
         <div class="g_id_signin mt-8"
              data-type="standard"
@@ -77,26 +77,30 @@
             </div>
         </div>
 
-        <!-- 文字起こし結果 -->
-        <div class="relative">
-            <label for="transcriptionText" class="block text-lg font-medium mb-2">文字起こし結果</label>
-            <textarea id="transcriptionText" class="w-full h-64 p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="ここにリアルタイムで文字起こしが表示されます..."></textarea>
-        </div>
-
-        <!-- 議事録生成フォーム (録音停止後に表示) -->
-        <div id="generationForm" class="hidden space-y-4">
+        <!-- 会議情報入力 -->
+        <div id="meetingInfo" class="space-y-4">
             <div>
                 <label for="clientCompany" class="block text-lg font-medium mb-2">相手の会社名</label>
                 <input type="text" id="clientCompany" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 株式会社サンプル">
             </div>
             <div>
                 <label for="clientAttendees" class="block text-lg font-medium mb-2">相手の会社の参加者 (コンマ区切り)</label>
-                <input type="text" id="clientAttendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 鈴木花子">
+                <input type="text" id="clientAttendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 鈴木花子 様">
             </div>
             <div>
                 <label for="ourAttendees" class="block text-lg font-medium mb-2">自社(リクト)の参加者 (コンマ区切り)</label>
                 <input type="text" id="ourAttendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 山田太郎">
             </div>
+        </div>
+
+        <!-- 文字起こし結果 -->
+        <div class="relative">
+            <label for="transcriptionText" class="block text-lg font-medium mb-2">文字起こし結果</label>
+            <textarea id="transcriptionText" class="w-full h-64 p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="ここにリアルタイムで文字起こしが表示されます..."></textarea>
+        </div>
+
+        <!-- 議事録生成ボタン (録音停止後に表示) -->
+        <div id="generationForm" class="hidden">
             <button id="generateButton" class="w-full px-6 py-4 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 flex items-center justify-center">
                 <i class="fas fa-file-alt mr-2"></i>AIで議事録を作成
             </button>
@@ -322,7 +326,6 @@
         
         resetButton.addEventListener('click', () => {
             transcriptionText.value = '';
-            attendees.value = '';
             clientCompany.value = '';
             clientAttendees.value = '';
             ourAttendees.value = '';
@@ -348,11 +351,10 @@
             generatedMinutesText.value = '';
             generateButton.disabled = true;
 
-            // ★★★ 「ぞうほう」を「Zoho」に置換 ★★★
             transcript = transcript.replace(/ぞうほう/g, 'Zoho');
 
             const formattedStartTime = recordingStartTime.toLocaleString('ja-JP', {
-                year: 'numeric', month: '2-digit', day: '2-digit',
+                year: 'numeric', month: 'numeric', day: 'numeric',
                 hour: '2-digit', minute: '2-digit'
             });
 
@@ -360,9 +362,9 @@
 
 # 会議情報
 - 日時: ${formattedStartTime}
-- 会社名: ${clientCompany.value || '記載なし'}
-- 参加者 (相手先): ${clientAttendees.value || '記載なし'}
-- 参加者 (自社): ${ourAttendees.value || '記載なし'}
+- 相手の会社名: ${clientCompany.value || '記載なし'}
+- 相手の会社の参加者: ${clientAttendees.value || '記載なし'}
+- 自社の参加者: ${ourAttendees.value || '記載なし'}
 
 # 文字起こしテキスト
 ---
@@ -371,6 +373,13 @@ ${transcript}
 
 # 生成する議事録のフォーマット
 見出しは「【】」で囲み、箇条書きは「・」を使用してください。Markdownの「##」や「**」は使用しないでください。
+
+【会議日時】
+・${formattedStartTime}
+
+【参加者】
+・相手先: ${clientCompany.value || '(会社名未入力)'} ${clientAttendees.value || ''}
+・自社: ${ourAttendees.value || ''}
 
 【会議の概要】
 ・
@@ -394,8 +403,6 @@ ${transcript}
             } finally {
                 loadingSpinner.classList.add('hidden');
                 generateButton.disabled = false;
-                // ★★★ フォームを非表示にしない ★★★
-                // generationForm.classList.add('hidden');
             }
         });
         
