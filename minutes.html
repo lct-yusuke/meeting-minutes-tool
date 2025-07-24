@@ -7,8 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Identity Services -->
+    <!-- Google Identity & API Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -107,10 +108,16 @@
             </div>
             <div class="relative">
                 <textarea id="generatedMinutesText" class="w-full h-96 p-4 border-2 border-green-200 bg-green-50 rounded-lg" readonly></textarea>
-                <button id="copyButton" class="absolute top-3 right-3 px-3 py-1.5 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300" title="議事録をコピー">
-                    <i class="fas fa-copy"></i>
-                </button>
+                <div class="absolute top-3 right-3 flex flex-col gap-2">
+                    <button id="copyButton" class="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300" title="議事録をコピー">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button id="sendToGoogleDocsButton" class="hidden px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600" title="Googleドキュメントに送信">
+                        <i class="fab fa-google-drive"></i>
+                    </button>
+                </div>
             </div>
+            <div id="google-docs-feedback" class="text-center mt-2"></div>
         </div>
     </div>
 
@@ -118,6 +125,9 @@
         // --- 設定 ---
         const GEMINI_API_KEY = "AIzaSyDOd05QUw1cvYHaWKBbFUjeyGGill6bApQ";
         const ALLOWED_DOMAIN = "lct.jp"; 
+        const GAPI_CLIENT_ID = "608279178775-sqmc0n5qimmlblnenfbtin66knofd7go.apps.googleusercontent.com";
+        const GAPI_DISCOVERY_DOCS = ["https://docs.googleapis.com/$discovery/rest?version=v1"];
+        const GAPI_SCOPES = "https://www.googleapis.com/auth/documents";
 
         // --- DOM要素 ---
         const loginContainer = document.getElementById('loginContainer');
@@ -135,34 +145,32 @@
         const loadingSpinner = document.getElementById('loadingSpinner');
         const generatedMinutesText = document.getElementById('generatedMinutesText');
         const copyButton = document.getElementById('copyButton');
+        const sendToGoogleDocsButton = document.getElementById('sendToGoogleDocsButton');
+        const googleDocsFeedback = document.getElementById('google-docs-feedback');
 
         // --- 変数 ---
         let recognition;
         let isRecording = false;
         let finalTranscript = '';
         let recordingStartTime;
+        let gapiInited = false;
+        let tokenClient;
 
         // --- 認証機能 ---
         window.handleSignIn = function(response) {
             try {
-                // 外部ライブラリを使わずにJWTをデコード
                 const credential = response.credential;
                 const payloadBase64Url = credential.split('.')[1];
                 const payloadBase64 = payloadBase64Url.replace(/-/g, '+').replace(/_/g, '/');
                 const jsonPayload = decodeURIComponent(atob(payloadBase64).split('').map(function(c) {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                 }).join(''));
-                
                 const userObject = JSON.parse(jsonPayload);
 
-                console.log("ログイン試行:", userObject.email);
-
                 if (userObject.email && userObject.email.endsWith('@' + ALLOWED_DOMAIN)) {
-                    console.log("認証成功");
                     loginContainer.classList.add('hidden');
                     mainAppContainer.classList.remove('hidden');
                 } else {
-                    console.log("認証失敗: ドメインが一致しません");
                     authError.classList.remove('hidden');
                     google.accounts.id.disableAutoSelect();
                 }
@@ -172,6 +180,53 @@
                 authError.classList.remove('hidden');
             }
         };
+
+        // --- Google Docs API連携 ---
+        window.gapiLoaded = function() {
+            gapi.load('client', initializeGapiClient);
+        };
+        async function initializeGapiClient() {
+            await gapi.client.init({ discoveryDocs: GAPI_DISCOVERY_DOCS });
+            gapiInited = true;
+        }
+        
+        sendToGoogleDocsButton.addEventListener('click', () => {
+             tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GAPI_CLIENT_ID,
+                scope: GAPI_SCOPES,
+                callback: async (resp) => {
+                    if (resp.error !== undefined) {
+                        throw (resp);
+                    }
+                    googleDocsFeedback.textContent = 'Googleドキュメントを作成中...';
+                    await createGoogleDoc();
+                },
+            });
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        });
+
+        async function createGoogleDoc() {
+            const docTitle = `議事録 - ${recordingStartTime.toLocaleString('ja-JP').slice(0, 16)}`;
+            const docContent = generatedMinutesText.value;
+            try {
+                const createResponse = await gapi.client.docs.documents.create({ title: docTitle });
+                const docId = createResponse.result.documentId;
+                await gapi.client.docs.documents.batchUpdate({
+                    documentId: docId,
+                    requests: [{ insertText: { location: { index: 1 }, text: docContent } }],
+                });
+                const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
+                googleDocsFeedback.innerHTML = `✅ <a href="${docUrl}" target="_blank" class="text-blue-500 hover:underline">Googleドキュメントが作成されました。</a>`;
+            } catch (err) {
+                googleDocsFeedback.textContent = `❌ エラー: ${err.message}`;
+                console.error(err);
+            }
+        }
 
         // --- 初期化 ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -252,6 +307,8 @@
             generationForm.classList.add('hidden');
             startButton.classList.remove('hidden');
             stopButton.classList.add('hidden');
+            googleDocsFeedback.innerHTML = '';
+            sendToGoogleDocsButton.classList.add('hidden');
             updateStatus('idle');
         });
 
@@ -305,6 +362,7 @@ ${transcript}
                 const result = await response.json();
                 if (result.candidates && result.candidates.length > 0) {
                     generatedMinutesText.value = result.candidates[0].content.parts[0].text;
+                    sendToGoogleDocsButton.classList.remove('hidden'); // Show Google Docs button
                 } else {
                     throw new Error('AIからの応答がありませんでした。');
                 }
