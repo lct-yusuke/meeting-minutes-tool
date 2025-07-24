@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI議事録作成ツール v5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google API Client Library -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .status-badge {
+            transition: all 0.3s ease-in-out;
+        }
+        .status-dot-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        .spinner {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
+        <!-- ヘッダー -->
+        <header class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">AI議事録作成ツール</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">会議の音声をリアルタイムでテキスト化し、AIが議事録を自動生成・分析します。</p>
+        </header>
+
+        <!-- 使い方説明 -->
+        <div class="bg-blue-50 dark:bg-gray-700/50 border border-blue-200 dark:border-gray-600 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-200">
+            <h3 class="font-semibold mb-2 flex items-center"><i class="fas fa-info-circle mr-2"></i>使い方</h3>
+            <ol class="list-decimal list-inside space-y-1">
+                <li>参加者を入力し、「録音開始」ボタンを押します。</li>
+                <li>会議終了後、「録音停止」→「議事録を作成」ボタンを押します。</li>
+                <li>「AI分析ツール」から、要約の作成やタスクの抽出など、追加機能を利用できます。</li>
+                <li>「Googleドキュメントに送信」ボタンで、議事録を保存できます。</li>
+            </ol>
+        </div>
+
+        <!-- コントロールパネル -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div class="flex items-center gap-4 flex-wrap">
+                <button id="startButton" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none">
+                    <i class="fas fa-microphone-alt mr-2"></i>録音開始
+                </button>
+                <button id="stopButton" class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none" disabled>
+                    <i class="fas fa-stop-circle mr-2"></i>録音停止
+                </button>
+                <button id="createMinutesButton" class="hidden px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <i class="fas fa-file-alt mr-2"></i>議事録を作成
+                </button>
+            </div>
+            <div id="status" class="status-badge flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium">
+                <div class="status-dot w-3 h-3 bg-gray-400 rounded-full"></div>
+                <span>待機中</span>
+            </div>
+        </div>
+
+        <!-- 参加者と文字起こしエリア -->
+        <div>
+            <div class="mb-4">
+                <label for="attendees" class="block text-lg font-medium mb-2 text-gray-800 dark:text-gray-200">参加者 (コンマ区切り)</label>
+                <input type="text" id="attendees" class="w-full p-2 border-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition dark:text-gray-200" placeholder="例: 山田太郎, 鈴木花子">
+            </div>
+            <div class="relative">
+                 <label for="resultText" class="block text-lg font-medium mb-2 text-gray-800 dark:text-gray-200">リアルタイム文字起こし結果</label>
+                <textarea id="resultText" class="w-full h-60 p-4 border-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition dark:text-gray-200" placeholder="ここに認識されたテキストが表示されます..."></textarea>
+                <button id="copyRawButton" class="absolute top-10 right-3 px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none" title="文字起こしテキストをコピー">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 生成された議事録エリア -->
+        <div id="minutesContainer" class="hidden space-y-4">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">AI生成議事録</h2>
+            <div id="loadingSpinner" class="hidden flex items-center justify-center p-8">
+                <div class="spinner w-12 h-12 border-4 border-gray-200 rounded-full"></div>
+                <p class="ml-4 text-lg">AIが議事録を生成中です...</p>
+            </div>
+            <div class="relative">
+                <textarea id="generatedMinutesText" class="w-full h-80 p-4 border-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition dark:text-gray-200" placeholder="ここにAIが生成した議事録が表示されます..."></textarea>
+                <div class="absolute top-3 right-3 flex flex-col gap-2">
+                    <button id="copyMinutesButton" class="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none" title="生成された議事録をコピー">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button id="sendToGoogleDocsButton" class="hidden px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none" title="Googleドキュメントに送信">
+                        <i class="fab fa-google-drive"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="google-docs-feedback" class="text-center"></div>
+        </div>
+
+        <!-- AI分析ツール -->
+        <div id="aiToolsContainer" class="hidden space-y-4">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">✨ AI分析ツール</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button id="summarizeButton" class="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
+                    <i class="fas fa-list-alt mr-2"></i>✨ 会議の要約
+                </button>
+                <button id="extractTasksButton" class="px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
+                    <i class="fas fa-tasks mr-2"></i>✨ タスクを抽出
+                </button>
+                <button id="suggestAgendaButton" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
+                    <i class="fas fa-calendar-alt mr-2"></i>✨ 次の議題を提案
+                </button>
+            </div>
+            <div id="aiToolsOutput" class="space-y-4">
+                <!-- Outputs will be dynamically added here -->
+            </div>
+        </div>
+
+        <!-- Feedback Messages -->
+        <div id="copy-feedback" class="fixed bottom-5 right-5 px-4 py-2 bg-green-500 text-white rounded-lg shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none">
+            <i class="fas fa-check"></i> コピーしました！
+        </div>
+        <div id="error-feedback" class="fixed bottom-5 right-5 px-4 py-2 bg-red-500 text-white rounded-lg shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none">
+            <i class="fas fa-exclamation-triangle"></i> エラーが発生しました。
+        </div>
+    </div>
+
+    <script>
+        // --- グローバル変数 ---
+        let recognition;
+        let finalTranscript = '';
+        let recordingStartTime;
+        let gapiInited = false;
+        let gisInited = false;
+        let tokenClient;
+
+        // --- Google API Configuration ---
+        const CLIENT_ID = '608279178775-sqmc0n5qimmlblnenfbtin66knofd7go.apps.googleusercontent.com';
+        const DISCOVERY_DOCS = ["https://docs.googleapis.com/$discovery/rest?version=v1"];
+        const SCOPES = "https://www.googleapis.com/auth/documents";
+
+        // --- DOM要素の取得 ---
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const createMinutesButton = document.getElementById('createMinutesButton');
+        const resultText = document.getElementById('resultText');
+        const statusElement = document.getElementById('status');
+        const copyRawButton = document.getElementById('copyRawButton');
+        const copyMinutesButton = document.getElementById('copyMinutesButton');
+        const minutesContainer = document.getElementById('minutesContainer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const generatedMinutesText = document.getElementById('generatedMinutesText');
+        const attendeesInput = document.getElementById('attendees');
+        const sendToGoogleDocsButton = document.getElementById('sendToGoogleDocsButton');
+        const googleDocsFeedback = document.getElementById('google-docs-feedback');
+        const copyFeedback = document.getElementById('copy-feedback');
+        const errorFeedback = document.getElementById('error-feedback');
+        const aiToolsContainer = document.getElementById('aiToolsContainer');
+        const aiToolsOutput = document.getElementById('aiToolsOutput');
+        const summarizeButton = document.getElementById('summarizeButton');
+        const extractTasksButton = document.getElementById('extractTasksButton');
+        const suggestAgendaButton = document.getElementById('suggestAgendaButton');
+
+        // --- Web Speech APIの準備 ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP';
+            recognition.interimResults = true;
+            recognition.continuous = true;
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + '\n';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                resultText.value = finalTranscript + interimTranscript;
+                resultText.scrollTop = resultText.scrollHeight;
+            };
+            recognition.onstart = () => {
+                updateStatus('recording');
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                createMinutesButton.classList.add('hidden');
+            };
+            recognition.onend = () => {
+                if (resultText.value.trim().length > 0) {
+                    updateStatus('finished');
+                    createMinutesButton.classList.remove('hidden');
+                    startButton.innerHTML = '<i class="fas fa-plus mr-2"></i>新規録音';
+                } else {
+                    updateStatus('idle');
+                    startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音開始';
+                }
+                startButton.disabled = false;
+                stopButton.disabled = true;
+            };
+            recognition.onerror = (event) => {
+                console.error('Speech Recognition Error:', event.error, event.message);
+                let userMessage = `音声認識エラー: ${event.error}`;
+                if (event.error === 'not-allowed') {
+                    userMessage = 'マイクの使用が許可されていません。';
+                    resultText.value = 'マイクへのアクセスがブロックされました。\n\nブラウザやOSのマイク設定を確認し、このサイトでのマイクの使用を許可してください。';
+                } else if (event.error === 'no-speech') {
+                    userMessage = '音声が検出されませんでした。';
+                }
+                updateStatus('error', userMessage);
+                showFeedback('error', userMessage);
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音開始';
+            };
+
+            startButton.addEventListener('click', () => {
+                finalTranscript = '';
+                resultText.value = '';
+                generatedMinutesText.value = '';
+                minutesContainer.classList.add('hidden');
+                aiToolsContainer.classList.add('hidden');
+                aiToolsOutput.innerHTML = '';
+                createMinutesButton.classList.add('hidden');
+                sendToGoogleDocsButton.classList.add('hidden');
+                googleDocsFeedback.innerHTML = '';
+                startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音開始';
+                recordingStartTime = new Date();
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error("Error starting recognition:", e);
+                    showFeedback('error', '認識を開始できませんでした。');
+                }
+            });
+
+            stopButton.addEventListener('click', () => recognition.stop());
+            createMinutesButton.addEventListener('click', generateMinutes);
+
+        } else {
+            updateStatus('error', 'ブラウザ非対応');
+            startButton.disabled = true;
+            resultText.value = '申し訳ありませんが、お使いのブラウザは音声認識機能に対応していません。';
+        }
+
+        // --- Google API Functions ---
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+        async function initializeGapiClient() {
+            await gapi.client.init({ discoveryDocs: DISCOVERY_DOCS });
+            gapiInited = true;
+            maybeEnableGoogleButton();
+        }
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '',
+            });
+            gisInited = true;
+            maybeEnableGoogleButton();
+        }
+        function maybeEnableGoogleButton() {
+            if (gapiInited && generatedMinutesText.value.trim().length > 0) {
+                 sendToGoogleDocsButton.classList.remove('hidden');
+            }
+        }
+        sendToGoogleDocsButton.addEventListener('click', async () => {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) { throw (resp); }
+                googleDocsFeedback.textContent = 'ドキュメントを作成中...';
+                await createGoogleDoc();
+            };
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        });
+        async function createGoogleDoc() {
+            const docTitle = `議事録 - ${recordingStartTime.toLocaleString('ja-JP').slice(0, 16)}`;
+            const docContent = generatedMinutesText.value;
+            try {
+                const createResponse = await gapi.client.docs.documents.create({ title: docTitle });
+                const docId = createResponse.result.documentId;
+                await gapi.client.docs.documents.batchUpdate({
+                    documentId: docId,
+                    requests: [{ insertText: { location: { index: 1 }, text: docContent } }],
+                });
+                const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
+                googleDocsFeedback.innerHTML = `✅ <a href="${docUrl}" target="_blank" class="text-blue-500 hover:underline">Googleドキュメントが作成されました。</a>`;
+            } catch (err) {
+                googleDocsFeedback.textContent = `❌ エラー: ${err.message}`;
+                console.error(err);
+            }
+        }
+
+        // --- AI 機能 ---
+        async function callGemini(prompt, outputElementId, spinnerId) {
+            const outputTextarea = document.getElementById(outputElementId);
+            const spinner = document.getElementById(spinnerId);
+            spinner.classList.remove('hidden');
+            outputTextarea.value = '';
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const geminiApiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    let errorDetails = response.statusText;
+                    try {
+                        const errorData = await response.json();
+                        errorDetails = errorData.error.message || JSON.stringify(errorData);
+                    } catch (e) { /* Ignore if can't parse JSON */ }
+                    throw new Error(`APIエラー: ${errorDetails}`);
+                }
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    outputTextarea.value = result.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error('AIからの応答がありませんでした。');
+                }
+            } catch (error) {
+                outputTextarea.value = '情報の生成中にエラーが発生しました。\n' + error.message;
+            } finally {
+                spinner.classList.add('hidden');
+            }
+        }
+
+        async function generateMinutes() {
+            const rawText = resultText.value;
+            if (!rawText.trim()) {
+                showFeedback('error', '文字起こしされたテキストがありません。');
+                return;
+            }
+            minutesContainer.classList.remove('hidden');
+            loadingSpinner.classList.remove('hidden');
+            generatedMinutesText.value = '';
+            createMinutesButton.disabled = true;
+            googleDocsFeedback.innerHTML = '';
+            aiToolsContainer.classList.add('hidden');
+            aiToolsOutput.innerHTML = '';
+            
+            const attendees = attendeesInput.value || '記載なし';
+            const formattedStartTime = recordingStartTime.toLocaleString('ja-JP', {
+                year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+
+            const prompt = `あなたは優秀なアシスタントです。以下の会議情報と文字起こしテキストを基に、ビジネスで通用する議事録を作成してください。
+
+# 会議情報
+- 日時: ${formattedStartTime}
+- 参加者: ${attendees}
+
+# 文字起こしテキスト
+---
+${rawText}
+---
+
+# 生成する議事録のフォーマット
+- **会議の概要**:
+- **決定事項**:
+- **アクションアイテム (担当者、期限を明確に)**:
+- **議論の詳細**:
+
+# 注意事項
+- 上記のフォーマットに厳密に従ってください。`;
+
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const geminiApiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    let errorDetails = response.statusText;
+                    try {
+                        const errorData = await response.json();
+                        errorDetails = errorData.error.message || JSON.stringify(errorData);
+                    } catch (e) { /* Ignore if can't parse JSON */ }
+                    throw new Error(`APIエラー: ${errorDetails}`);
+                }
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    generatedMinutesText.value = result.candidates[0].content.parts[0].text;
+                    maybeEnableGoogleButton();
+                    aiToolsContainer.classList.remove('hidden'); // Show AI tools
+                } else {
+                    throw new Error('AIからの応答がありませんでした。');
+                }
+            } catch (error) {
+                generatedMinutesText.value = '議事録の生成中にエラーが発生しました。\n' + error.message;
+                showFeedback('error');
+            } finally {
+                loadingSpinner.classList.add('hidden');
+                createMinutesButton.disabled = false;
+            }
+        }
+
+        // --- AI分析ツール イベントリスナー ---
+        function createAiToolOutputBox(id, title, iconClass) {
+            let container = document.getElementById(`container-${id}`);
+            if (container) {
+                const textarea = container.querySelector('textarea');
+                if (textarea) textarea.value = '';
+                return container;
+            }
+
+            container = document.createElement('div');
+            container.id = `container-${id}`;
+            container.className = 'relative mt-4';
+            container.innerHTML = `
+                <label for="${id}" class="block text-lg font-medium mb-2 text-gray-800 dark:text-gray-200 flex items-center">
+                    <i class="${iconClass} mr-2"></i>${title}
+                </label>
+                <div id="spinner-${id}" class="hidden absolute inset-0 bg-white/50 dark:bg-gray-800/50 flex items-center justify-center rounded-lg">
+                    <div class="spinner w-8 h-8 border-4 border-gray-200 rounded-full"></div>
+                </div>
+                <textarea id="${id}" class="w-full h-40 p-4 border-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 rounded-lg dark:text-gray-200" readonly></textarea>
+            `;
+            aiToolsOutput.appendChild(container);
+            return container;
+        }
+
+        summarizeButton.addEventListener('click', () => {
+            createAiToolOutputBox('summary-output', '会議の要約', 'fas fa-list-alt');
+            const prompt = `以下の議事録を簡潔に、箇条書きで要約してください。\n\n---\n${generatedMinutesText.value}`;
+            callGemini(prompt, 'summary-output', 'spinner-summary-output');
+        });
+
+        extractTasksButton.addEventListener('click', () => {
+            createAiToolOutputBox('tasks-output', '抽出されたタスク', 'fas fa-tasks');
+            const prompt = `以下の議事録から、すべてのタスク（アクションアイテム）を抽出してください。担当者、タスク内容、期限を明確にして、チェックリスト形式（例: - [ ] 担当者: タスク内容（期限））で書き出してください。\n\n---\n${generatedMinutesText.value}`;
+            callGemini(prompt, 'tasks-output', 'spinner-tasks-output');
+        });
+
+        suggestAgendaButton.addEventListener('click', () => {
+            createAiToolOutputBox('agenda-output', '次回の議題提案', 'fas fa-calendar-alt');
+            const prompt = `以下の議事録の内容、特に未解決の問題や次のステップを基に、次回のフォローアップ会議のアジェンダを3〜5項目で提案してください。\n\n---\n${generatedMinutesText.value}`;
+            callGemini(prompt, 'agenda-output', 'spinner-agenda-output');
+        });
+
+        // --- UIヘルパー関数 ---
+        function updateStatus(status, message = '') {
+            const dot = statusElement.querySelector('.status-dot');
+            const text = statusElement.querySelector('span');
+            dot.className = 'status-dot w-3 h-3 rounded-full';
+            switch (status) {
+                case 'recording': dot.classList.add('bg-green-500', 'status-dot-pulse'); text.textContent = '録音中...'; break;
+                case 'finished': dot.classList.add('bg-blue-500'); text.textContent = '処理完了'; break;
+                case 'error': dot.classList.add('bg-red-500'); text.textContent = message || 'エラー'; break;
+                default: dot.classList.add('bg-gray-400'); text.textContent = '待機中'; break;
+            }
+        }
+        function copyText(elementId, feedbackType) {
+            const textArea = document.getElementById(elementId);
+if (textArea && textArea.value) {
+                textArea.select();
+                document.execCommand('copy');
+                showFeedback(feedbackType);
+            }
+        }
+        function showFeedback(type, message = '') {
+            const element = type === 'copy' ? copyFeedback : errorFeedback;
+            if (message) {
+                element.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+            } else if (type === 'copy') {
+                 element.innerHTML = '<i class="fas fa-check"></i> コピーしました！';
+            }
+            element.style.opacity = '1';
+            setTimeout(() => { element.style.opacity = '0'; }, 3500);
+        }
+
+        copyRawButton.addEventListener('click', () => copyText('resultText', 'copy'));
+        copyMinutesButton.addEventListener('click', () => copyText('generatedMinutesText', 'copy'));
+    </script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
+</html>
