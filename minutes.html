@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://unpkg.com/jwt-decode/build/jwt-decode.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -144,10 +143,18 @@
         let recordingStartTime;
 
         // --- 認証機能 ---
-        // Googleのライブラリがグローバルスコープでこの関数を呼び出すため、windowオブジェクトにアタッチします。
         window.handleSignIn = function(response) {
             try {
-                const userObject = jwt_decode(response.credential);
+                // 外部ライブラリを使わずにJWTをデコード
+                const credential = response.credential;
+                const payloadBase64Url = credential.split('.')[1];
+                const payloadBase64 = payloadBase64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(payloadBase64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                
+                const userObject = JSON.parse(jsonPayload);
+
                 console.log("ログイン試行:", userObject.email);
 
                 if (userObject.email && userObject.email.endsWith('@' + ALLOWED_DOMAIN)) {
