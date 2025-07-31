@@ -46,11 +46,17 @@
             font-weight: 600;
         }
 
-        .input-group {
+        .two-column-group {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             margin-bottom: 15px;
+        }
+
+        .column-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .input-field {
@@ -65,14 +71,15 @@
             font-size: 0.9em;
         }
 
-        input[type="text"] {
+        input[type="text"], input[type="password"] {
             padding: 10px;
             border: 2px solid #e0e0e0;
             border-radius: 5px;
             font-size: 1em;
+            width: 100%;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -86,6 +93,7 @@
             cursor: pointer;
             margin-right: 10px;
             margin-bottom: 10px;
+            display: inline-block;
         }
 
         .btn-primary {
@@ -115,6 +123,15 @@
             background: #c82333;
         }
 
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -132,6 +149,13 @@
         .status-recording {
             background: #ffebee;
             color: #c62828;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
         }
 
         .status-idle {
@@ -140,7 +164,7 @@
         }
 
         .transcript-box {
-            min-height: 150px;
+            min-height: 200px;
             padding: 15px;
             background: white;
             border: 2px solid #e0e0e0;
@@ -148,8 +172,10 @@
             font-size: 1em;
             line-height: 1.6;
             color: #333;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
+            width: 100%;
+            resize: vertical;
         }
 
         .minutes-box {
@@ -157,11 +183,11 @@
             padding: 20px;
             border-radius: 5px;
             border: 2px solid #e0e0e0;
-            min-height: 200px;
+            min-height: 300px;
             white-space: pre-wrap;
             line-height: 1.8;
             font-size: 1em;
-            max-height: 500px;
+            max-height: 600px;
             overflow-y: auto;
         }
 
@@ -187,14 +213,56 @@
             color: #1976d2;
         }
 
+        .warning-message {
+            background: #fff3cd;
+            color: #856404;
+        }
+
         .loading {
             display: none;
             color: #667eea;
             margin-top: 10px;
+            font-weight: 500;
         }
 
         .loading.active {
             display: block;
+        }
+
+        .debug-info {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.85em;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .debug-info.active {
+            display: block;
+        }
+
+        .edit-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .char-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .two-column-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -203,33 +271,37 @@
         <h1>🎙️ 議事録作成ツール</h1>
         
         <div class="info-message message" style="display: block; margin-bottom: 20px;">
-            <strong>使い方:</strong> ①基本情報を入力 → ②録音開始をクリック → ③会議実施 → ④録音停止 → ⑤議事録を生成
+            <strong>使い方:</strong> 録音開始で音声を文字起こし、または直接テキストを入力・編集できます。基本情報は録音の前後いつでも入力可能です。
         </div>
 
         <div class="section">
             <h2 class="section-title">📋 基本情報</h2>
-            <div class="input-group">
-                <div class="input-field">
-                    <label for="ourCompany">自社名</label>
-                    <input type="text" id="ourCompany" value="リクト">
+            <div class="two-column-group">
+                <div class="column-group">
+                    <div class="input-field">
+                        <label for="ourCompany">自社名</label>
+                        <input type="text" id="ourCompany" value="リクト">
+                    </div>
+                    <div class="input-field">
+                        <label for="ourAttendees">自社参加者</label>
+                        <input type="text" id="ourAttendees" placeholder="例: 山田太郎, 佐藤花子">
+                    </div>
                 </div>
-                <div class="input-field">
-                    <label for="theirCompany">先方会社名</label>
-                    <input type="text" id="theirCompany" placeholder="例: 株式会社XYZ">
-                </div>
-                <div class="input-field">
-                    <label for="ourAttendees">自社参加者</label>
-                    <input type="text" id="ourAttendees" placeholder="例: 山田太郎, 佐藤花子">
-                </div>
-                <div class="input-field">
-                    <label for="theirAttendees">先方参加者</label>
-                    <input type="text" id="theirAttendees" placeholder="例: 田中一郎, 鈴木次郎">
+                <div class="column-group">
+                    <div class="input-field">
+                        <label for="theirCompany">先方会社名</label>
+                        <input type="text" id="theirCompany" placeholder="例: 株式会社XYZ">
+                    </div>
+                    <div class="input-field">
+                        <label for="theirAttendees">先方参加者</label>
+                        <input type="text" id="theirAttendees" placeholder="例: 田中一郎, 鈴木次郎">
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="section">
-            <h2 class="section-title">🎤 音声録音</h2>
+            <h2 class="section-title">🎤 音声録音・文字起こし</h2>
             <div>
                 <button id="startBtn" class="btn btn-primary" onclick="startRecording()">● 録音開始</button>
                 <button id="stopBtn" class="btn btn-secondary" onclick="stopRecording()" disabled>■ 録音停止</button>
@@ -237,31 +309,35 @@
                 <span id="status" class="status status-idle">待機中</span>
             </div>
             <div style="margin-top: 15px;">
-                <div style="margin-bottom: 5px; font-size: 0.9em; color: #666;">
-                    文字起こし内容 (文字数: <span id="charCount">0</span>)
+                <div class="edit-controls">
+                    <div class="char-info">
+                        文字起こし内容（編集可能） - 文字数: <span id="charCount">0</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="toggleEditMode()" id="editToggleBtn">編集モード: ON</button>
                 </div>
-                <div class="transcript-box" id="transcript">
-                    ここに文字起こしされた内容が表示されます...
-                </div>
+                <textarea class="transcript-box" id="transcript" placeholder="ここに文字起こしされた内容が表示されます。直接入力・編集も可能です..." oninput="updateCharCount()"></textarea>
             </div>
         </div>
 
         <div class="section">
             <h2 class="section-title">📄 議事録生成</h2>
             <div class="input-field" style="margin-bottom: 15px;">
-                <label for="geminiKey">Gemini API Key</label>
+                <label for="geminiKey">Gemini API Key（必須）</label>
                 <input type="password" id="geminiKey" placeholder="AIzaSy...">
             </div>
-            <button id="generateBtn" class="btn btn-primary" onclick="generateMinutes()" disabled>✨ 議事録を生成</button>
+            <button id="generateBtn" class="btn btn-primary" onclick="generateMinutes()">✨ 議事録を生成</button>
+            <button class="btn btn-secondary" onclick="toggleDebug()">🔧 デバッグ情報</button>
             <div class="loading" id="generateLoading">⏳ 議事録を生成中...</div>
             <div class="error-message message" id="errorMessage"></div>
             <div class="success-message message" id="successMessage"></div>
+            <div class="warning-message message" id="warningMessage"></div>
+            <div class="debug-info" id="debugInfo"></div>
             <div class="minutes-box" id="minutes" style="margin-top: 20px; display: none;"></div>
         </div>
 
         <div class="section" id="exportSection" style="display: none;">
             <h2 class="section-title">💾 エクスポート</h2>
-            <button class="btn btn-primary" onclick="downloadMinutes()">📥 テキストファイルとしてダウンロード</button>
+            <button class="btn btn-success" onclick="downloadMinutes()">📥 テキストファイルとしてダウンロード</button>
             <button class="btn btn-secondary" onclick="copyToClipboard()">📋 クリップボードにコピー</button>
         </div>
     </div>
@@ -270,10 +346,14 @@
         // グローバル変数
         let recognition = null;
         let isRecording = false;
-        let fullTranscript = '';
+        let debugMode = false;
+        let editMode = true;
 
         // 初期化
         function init() {
+            const transcriptEl = document.getElementById('transcript');
+            
+            // 音声認識の初期化
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 recognition = new SpeechRecognition();
@@ -282,43 +362,76 @@
                 recognition.lang = 'ja-JP';
 
                 recognition.onresult = (event) => {
+                    let fullTranscript = transcriptEl.value;
                     let interimTranscript = '';
                     
+                    // 最後の確定した位置を記録
+                    let lastFinalIndex = 0;
+                    for (let i = 0; i < event.resultIndex; i++) {
+                        if (event.results[i].isFinal) {
+                            lastFinalIndex = i + 1;
+                        }
+                    }
+                    
+                    // 新しい結果を処理
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         const transcript = event.results[i][0].transcript;
                         
                         if (event.results[i].isFinal) {
-                            fullTranscript += transcript + ' ';
+                            // 新しい確定テキストを追加
+                            if (i >= lastFinalIndex) {
+                                fullTranscript += transcript + ' ';
+                            }
                         } else {
                             interimTranscript += transcript;
                         }
                     }
                     
-                    document.getElementById('transcript').textContent = fullTranscript + interimTranscript;
-                    document.getElementById('charCount').textContent = (fullTranscript + interimTranscript).length;
+                    // テキストエリアを更新
+                    transcriptEl.value = fullTranscript + interimTranscript;
+                    updateCharCount();
+                    
+                    // スクロールを最下部に
+                    transcriptEl.scrollTop = transcriptEl.scrollHeight;
                 };
 
                 recognition.onerror = (event) => {
                     console.error('音声認識エラー:', event.error);
                     if (event.error === 'not-allowed') {
-                        showError('マイクへのアクセスが拒否されました。');
+                        showError('マイクへのアクセスが拒否されました。ブラウザの設定を確認してください。');
+                    } else if (event.error === 'no-speech') {
+                        // 無音エラーは無視
+                        console.log('無音を検出');
                     }
                 };
 
                 recognition.onend = () => {
                     if (isRecording) {
-                        // 自動再開
+                        // 録音中なら自動的に再開
                         setTimeout(() => {
                             if (isRecording) {
-                                recognition.start();
+                                try {
+                                    recognition.start();
+                                } catch (e) {
+                                    console.error('音声認識の再開エラー:', e);
+                                }
                             }
                         }, 500);
+                    } else {
+                        // 録音停止の処理
+                        document.getElementById('status').textContent = '待機中';
+                        document.getElementById('status').className = 'status status-idle';
                     }
                 };
+
+                showSuccess('音声認識の初期化が完了しました');
             } else {
                 showError('お使いのブラウザは音声認識に対応していません。Chromeをご利用ください。');
                 document.getElementById('startBtn').disabled = true;
             }
+
+            // 初期文字数を更新
+            updateCharCount();
         }
 
         // 録音開始
@@ -328,16 +441,24 @@
                 return;
             }
 
+            // マイクの許可を取得
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(() => {
                     isRecording = true;
-                    recognition.start();
-                    document.getElementById('startBtn').disabled = true;
-                    document.getElementById('stopBtn').disabled = false;
-                    document.getElementById('status').textContent = '録音中...';
-                    document.getElementById('status').className = 'status status-recording';
+                    try {
+                        recognition.start();
+                        document.getElementById('startBtn').disabled = true;
+                        document.getElementById('stopBtn').disabled = false;
+                        document.getElementById('status').textContent = '録音中...';
+                        document.getElementById('status').className = 'status status-recording';
+                        showSuccess('録音を開始しました');
+                    } catch (e) {
+                        showError('録音の開始に失敗しました: ' + e.message);
+                        isRecording = false;
+                    }
                 })
                 .catch((error) => {
+                    console.error('マイクアクセスエラー:', error);
                     showError('マイクへのアクセスが拒否されました。');
                 });
         }
@@ -345,45 +466,93 @@
         // 録音停止
         function stopRecording() {
             isRecording = false;
-            recognition.stop();
+            if (recognition) {
+                recognition.stop();
+            }
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
             document.getElementById('status').textContent = '待機中';
             document.getElementById('status').className = 'status status-idle';
-            
-            if (fullTranscript.trim()) {
-                document.getElementById('generateBtn').disabled = false;
-            }
+            showSuccess('録音を停止しました');
         }
 
         // クリア
         function clearTranscript() {
-            fullTranscript = '';
-            document.getElementById('transcript').textContent = 'ここに文字起こしされた内容が表示されます...';
-            document.getElementById('charCount').textContent = '0';
-            document.getElementById('generateBtn').disabled = true;
-            document.getElementById('minutes').style.display = 'none';
-            document.getElementById('exportSection').style.display = 'none';
+            if (confirm('文字起こし内容をクリアしますか？')) {
+                document.getElementById('transcript').value = '';
+                updateCharCount();
+                document.getElementById('minutes').style.display = 'none';
+                document.getElementById('exportSection').style.display = 'none';
+                hideMessages();
+            }
+        }
+
+        // 文字数更新
+        function updateCharCount() {
+            const text = document.getElementById('transcript').value;
+            document.getElementById('charCount').textContent = text.length;
+        }
+
+        // 編集モード切り替え
+        function toggleEditMode() {
+            editMode = !editMode;
+            const transcriptEl = document.getElementById('transcript');
+            const btn = document.getElementById('editToggleBtn');
+            
+            if (editMode) {
+                transcriptEl.removeAttribute('readonly');
+                btn.textContent = '編集モード: ON';
+            } else {
+                transcriptEl.setAttribute('readonly', true);
+                btn.textContent = '編集モード: OFF';
+            }
+        }
+
+        // デバッグ情報の表示切り替え
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugEl = document.getElementById('debugInfo');
+            if (debugMode) {
+                debugEl.classList.add('active');
+            } else {
+                debugEl.classList.remove('active');
+            }
+        }
+
+        // デバッグ情報の更新
+        function updateDebugInfo(info) {
+            if (debugMode) {
+                const debugEl = document.getElementById('debugInfo');
+                debugEl.innerHTML = `<strong>デバッグ情報:</strong><br>${info}`;
+            }
         }
 
         // 議事録生成
         async function generateMinutes() {
             const apiKey = document.getElementById('geminiKey').value;
+            const transcriptText = document.getElementById('transcript').value;
             
+            // バリデーション
             if (!apiKey) {
                 showError('Gemini API Keyを入力してください。');
                 return;
             }
 
-            if (!fullTranscript.trim()) {
-                showError('文字起こしされた内容がありません。');
+            if (!transcriptText.trim()) {
+                showError('文字起こし内容がありません。録音するか、テキストを入力してください。');
                 return;
+            }
+
+            // 文字数チェック
+            if (transcriptText.length < 50) {
+                showWarning('文字数が少ないため、適切な議事録が生成されない可能性があります。');
             }
 
             document.getElementById('generateLoading').classList.add('active');
             document.getElementById('generateBtn').disabled = true;
             hideMessages();
 
+            // 基本情報の取得
             const ourCompany = document.getElementById('ourCompany').value || 'リクト';
             const theirCompany = document.getElementById('theirCompany').value || '先方';
             const ourAttendees = document.getElementById('ourAttendees').value || '自社参加者';
@@ -400,7 +569,7 @@
 先方参加者: ${theirAttendees}
 
 【文字起こし内容】
-${fullTranscript}
+${transcriptText}
 
 【議事録形式】
 以下の形式で議事録を作成してください：
@@ -425,6 +594,8 @@ ${fullTranscript}
 6. 備考・補足事項
 `;
 
+            updateDebugInfo(`API Key: ${apiKey.substring(0, 10)}...<br>プロンプト文字数: ${prompt.length}<br>文字起こし文字数: ${transcriptText.length}`);
+
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -444,10 +615,14 @@ ${fullTranscript}
                     }),
                 });
 
+                updateDebugInfo(`レスポンスステータス: ${response.status}`);
+
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.error?.message || 'APIリクエストに失敗しました');
+                    const errorDetail = data.error?.message || JSON.stringify(data);
+                    updateDebugInfo(`APIエラー: ${errorDetail}`);
+                    throw new Error(errorDetail);
                 }
                 
                 if (data.candidates && data.candidates[0] && data.candidates[0].content) {
@@ -456,11 +631,15 @@ ${fullTranscript}
                     document.getElementById('minutes').style.display = 'block';
                     document.getElementById('exportSection').style.display = 'block';
                     showSuccess('議事録の生成が完了しました！');
+                    updateDebugInfo('議事録生成成功');
                 } else {
-                    throw new Error('議事録の生成に失敗しました');
+                    updateDebugInfo(`予期しないレスポンス形式: ${JSON.stringify(data)}`);
+                    throw new Error('議事録の生成に失敗しました（レスポンス形式エラー）');
                 }
             } catch (error) {
-                showError('エラー: ' + error.message);
+                console.error('議事録生成エラー:', error);
+                showError(`エラー: ${error.message}`);
+                updateDebugInfo(`エラー詳細: ${error.message}`);
             } finally {
                 document.getElementById('generateLoading').classList.remove('active');
                 document.getElementById('generateBtn').disabled = false;
@@ -470,13 +649,22 @@ ${fullTranscript}
         // ダウンロード
         function downloadMinutes() {
             const minutes = document.getElementById('minutes').textContent;
-            const blob = new Blob([minutes], { type: 'text/plain;charset=utf-8' });
+            const metadata = `
+議事録
+作成日時: ${new Date().toLocaleString('ja-JP')}
+自社: ${document.getElementById('ourCompany').value}
+先方: ${document.getElementById('theirCompany').value}
+===============================
+
+`;
+            const blob = new Blob([metadata + minutes], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `議事録_${new Date().toISOString().slice(0, 10)}.txt`;
             a.click();
             URL.revokeObjectURL(url);
+            showSuccess('ファイルをダウンロードしました');
         }
 
         // クリップボードにコピー
@@ -487,7 +675,7 @@ ${fullTranscript}
                 .catch(() => showError('コピーに失敗しました'));
         }
 
-        // メッセージ表示
+        // メッセージ表示関数
         function showError(message) {
             const el = document.getElementById('errorMessage');
             el.textContent = message;
@@ -502,9 +690,17 @@ ${fullTranscript}
             setTimeout(() => el.style.display = 'none', 5000);
         }
 
+        function showWarning(message) {
+            const el = document.getElementById('warningMessage');
+            el.textContent = message;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
+
         function hideMessages() {
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('warningMessage').style.display = 'none';
         }
 
         // 初期化実行
