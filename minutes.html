@@ -3,469 +3,872 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI議事録作成ツール v7 (社員認証機能付き)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Identity & API Services -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <title>議事録作成ツール</title>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .status-dot-pulse {
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .recording-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5a67d8;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #d0d0d0;
+        }
+
+        .btn-success {
+            background: #43a047;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #388e3c;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .status-recording {
+            background: #ffebee;
+            color: #c62828;
             animation: pulse 2s infinite;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+        .status-idle {
+            background: #f5f5f5;
+            color: #666;
         }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .recording-timer {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #c62828;
+        }
+
+        .transcript-box {
+            min-height: 150px;
+            padding: 15px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+            line-height: 1.6;
+            color: #333;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .minutes-box {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            border: 2px solid #e0e0e0;
+            min-height: 200px;
+            white-space: pre-wrap;
+            line-height: 1.8;
+            font-size: 1em;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .auth-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-dot.connected {
+            background: #43a047;
+        }
+
+        .status-dot.disconnected {
+            background: #e53935;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: #667eea;
+            font-weight: 500;
+            margin: 10px 0;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
         .spinner {
-            border-top-color: #3498db;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
             animation: spin 1s linear infinite;
         }
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        .hidden { display: none; }
+
+        .message {
+            padding: 12px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .warning-message {
+            background: #fff3cd;
+            color: #856404;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .permission-info {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .clear-btn {
+            background: #ff5252;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .clear-btn:hover {
+            background: #f44336;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+            
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
-<body class="bg-white text-gray-800 p-4">
-
-    <!-- ログイン画面 -->
-    <div id="loginContainer" class="w-full max-w-md mx-auto mt-20 text-center">
-        <h1 class="text-3xl font-bold text-gray-900">AI議事録作成ツール</h1>
-        <p class="text-gray-600 mt-4">会社のGoogleアカウントでログインしてください。</p>
-        <div id="g_id_onload"
-             data-client_id="608279178775-sqmc0n5qimmlblnenfbtin66knofd7go.apps.googleusercontent.com"
-             data-callback="handleSignIn"
-             data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin mt-8"
-             data-type="standard"
-             data-shape="rectangular"
-             data-theme="outline"
-             data-text="signin_with"
-             data-size="large"
-             data-logo_alignment="left">
-        </div>
-        <p id="authError" class="hidden mt-4 text-red-500 font-semibold">このアカウントではアクセスできません。会社のドメインを持つアカウントでログインしてください。</p>
-    </div>
-
-    <!-- メインアプリ (初期状態では非表示) -->
-    <div id="mainAppContainer" class="hidden w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
-        <!-- ヘッダー -->
-        <header class="text-center">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">AI議事録作成ツール</h1>
-            <p class="text-gray-600 mt-2">会議の音声をAIが解析し、高精度な議事録を自動で作成・管理するツールです。</p>
-        </header>
-
-        <!-- ステータスとコントロール -->
-        <div class="flex items-center justify-between gap-4 p-4 bg-gray-100 rounded-lg">
-            <div class="flex items-center gap-4">
-                <button id="startButton" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400">
-                    <i class="fas fa-microphone-alt mr-2"></i>録音開始
-                </button>
-                <button id="stopButton" class="hidden px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
-                    <i class="fas fa-stop-circle mr-2"></i>録音停止
-                </button>
-            </div>
-            <div id="status" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-700 font-medium">
-                <div class="status-dot w-3 h-3 bg-gray-400 rounded-full"></div>
-                <span>待機中</span>
-            </div>
+<body>
+    <div class="container">
+        <h1>🎙️ 議事録作成ツール</h1>
+        
+        <div class="permission-info" id="permissionInfo">
+            <strong>📢 初回利用時の注意:</strong><br>
+            • 録音開始時にブラウザからマイクの使用許可を求められます<br>
+            • 「許可」をクリックしてください<br>
+            • Google Sitesでは一部機能が制限される場合があります
         </div>
 
-        <!-- 会議情報入力 -->
-        <div id="meetingInfo" class="space-y-4">
-            <div>
-                <label for="clientCompany" class="block text-lg font-medium mb-2">相手の会社名</label>
-                <input type="text" id="clientCompany" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 株式会社サンプル">
-            </div>
-            <div>
-                <label for="clientAttendees" class="block text-lg font-medium mb-2">相手の会社の参加者 (コンマ区切り)</label>
-                <input type="text" id="clientAttendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 鈴木花子 様">
-            </div>
-            <div>
-                <label for="ourAttendees" class="block text-lg font-medium mb-2">自社(リクト)の参加者 (コンマ区切り)</label>
-                <input type="text" id="ourAttendees" class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="例: 山田太郎">
-            </div>
-        </div>
-
-        <!-- 文字起こし結果 -->
-        <div class="relative">
-            <label for="transcriptionText" class="block text-lg font-medium mb-2">文字起こし結果</label>
-            <textarea id="transcriptionText" class="w-full h-64 p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="ここにリアルタイムで文字起こしが表示されます..."></textarea>
-        </div>
-
-        <!-- 議事録生成ボタン (録音停止後に表示) -->
-        <div id="generationForm" class="hidden">
-            <button id="generateButton" class="w-full px-6 py-4 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 flex items-center justify-center">
-                <i class="fas fa-file-alt mr-2"></i>AIで議事録を作成
-            </button>
-        </div>
-
-        <!-- AI生成議事録 (生成後に表示) -->
-        <div id="minutesContainer" class="hidden space-y-4">
-             <div class="flex justify-between items-center">
-                <h2 class="text-xl md:text-2xl font-bold">AI生成議事録</h2>
-                <button id="resetButton" class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400">
-                    <i class="fas fa-sync-alt mr-2"></i>リセット
-                </button>
-            </div>
-            <div id="loadingSpinner" class="hidden flex items-center justify-center p-8">
-                <div class="spinner w-12 h-12 border-4 border-gray-200 rounded-full"></div>
-                <p class="ml-4 text-lg">AIが議事録を生成中です...</p>
-            </div>
-            <div class="relative">
-                <textarea id="generatedMinutesText" class="w-full h-96 p-4 border-2 border-green-200 bg-green-50 rounded-lg" readonly></textarea>
-                <div class="absolute top-3 right-3 flex flex-col gap-2">
-                    <button id="copyButton" class="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300" title="議事録をコピー">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <button id="sendToGoogleDocsButton" class="hidden px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600" title="Googleドキュメントに送信">
-                        <i class="fab fa-google-drive"></i>
-                    </button>
+        <div class="section">
+            <h2 class="section-title">📋 基本情報</h2>
+            <div class="input-group">
+                <div class="input-field">
+                    <label for="ourCompany">自社名</label>
+                    <input type="text" id="ourCompany" value="リクト" placeholder="例: 株式会社ABC">
+                </div>
+                <div class="input-field">
+                    <label for="theirCompany">先方会社名</label>
+                    <input type="text" id="theirCompany" placeholder="例: 株式会社XYZ">
+                </div>
+                <div class="input-field">
+                    <label for="ourAttendees">自社参加者</label>
+                    <input type="text" id="ourAttendees" placeholder="例: 山田太郎, 佐藤花子">
+                </div>
+                <div class="input-field">
+                    <label for="theirAttendees">先方参加者</label>
+                    <input type="text" id="theirAttendees" placeholder="例: 田中一郎, 鈴木次郎">
                 </div>
             </div>
-            <div id="google-docs-feedback" class="text-center mt-2"></div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">🎤 音声録音</h2>
+            <div class="warning-message" id="browserWarning" style="display: none;">
+                ⚠️ 音声認識はChromeブラウザで最適に動作します
+            </div>
+            <div class="recording-controls">
+                <button id="startBtn" class="btn btn-primary">
+                    <span>●</span> 録音開始
+                </button>
+                <button id="stopBtn" class="btn btn-secondary" disabled>
+                    <span>■</span> 録音停止
+                </button>
+                <span id="status" class="status status-idle">待機中</span>
+                <span id="recordingTimer" class="recording-timer" style="display: none;">00:00:00</span>
+                <button id="clearBtn" class="btn clear-btn">
+                    <span>🗑️</span> クリア
+                </button>
+            </div>
+            <div style="margin-bottom: 10px; font-size: 0.9em; color: #666;">
+                <span>文字起こし内容 (文字数: <span id="charCount">0</span>)</span>
+            </div>
+            <div class="transcript-box" id="transcript">
+                ここに文字起こしされた内容が表示されます...
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">⚙️ Google認証</h2>
+            <div class="auth-status">
+                <span class="status-dot disconnected" id="authStatusDot"></span>
+                <span id="authStatusText">Google未認証</span>
+            </div>
+            <button id="authorizeBtn" class="btn btn-primary">
+                Googleアカウントでログイン
+            </button>
+            <button id="signoutBtn" class="btn btn-secondary" style="display: none;">
+                ログアウト
+            </button>
+            <div class="error-message message" id="authError"></div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">📄 議事録生成</h2>
+            <button id="generateBtn" class="btn btn-primary" disabled>
+                <span>✨</span> 議事録を生成
+            </button>
+            <div class="loading" id="generateLoading">
+                <div class="spinner"></div>
+                <span>議事録を生成中...</span>
+            </div>
+            <div class="error-message message" id="errorMessage"></div>
+            <div class="success-message message" id="successMessage"></div>
+            <div class="minutes-box" id="minutes" style="margin-top: 20px; display: none;">
+                生成された議事録がここに表示されます...
+            </div>
+        </div>
+
+        <div class="section" id="uploadSection" style="display: none;">
+            <h2 class="section-title">☁️ Google Docsへアップロード</h2>
+            <button id="uploadBtn" class="btn btn-success">
+                <span>📤</span> Google Docsにアップロード
+            </button>
+            <div class="loading" id="uploadLoading">
+                <div class="spinner"></div>
+                <span>アップロード中...</span>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- 設定 ---
-        const GEMINI_API_KEY = "AIzaSyDOd05QUw1cvYHaWKBbFUjeyGGill6bApQ";
-        const ALLOWED_DOMAIN = "lct.jp"; 
-        const GAPI_CLIENT_ID = "608279178775-sqmc0n5qimmlblnenfbtin66knofd7go.apps.googleusercontent.com";
-        const GAPI_DISCOVERY_DOCS = ["https://docs.googleapis.com/$discovery/rest?version=v1"];
-        const GAPI_SCOPES = "https://www.googleapis.com/auth/documents";
-
-        // --- DOM要素 ---
-        const loginContainer = document.getElementById('loginContainer');
-        const mainAppContainer = document.getElementById('mainAppContainer');
-        const authError = document.getElementById('authError');
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
-        const generateButton = document.getElementById('generateButton');
-        const resetButton = document.getElementById('resetButton');
-        const transcriptionText = document.getElementById('transcriptionText');
-        const clientCompany = document.getElementById('clientCompany');
-        const clientAttendees = document.getElementById('clientAttendees');
-        const ourAttendees = document.getElementById('ourAttendees');
-        const statusElement = document.getElementById('status');
-        const generationForm = document.getElementById('generationForm');
-        const minutesContainer = document.getElementById('minutesContainer');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        const generatedMinutesText = document.getElementById('generatedMinutesText');
-        const copyButton = document.getElementById('copyButton');
-        const sendToGoogleDocsButton = document.getElementById('sendToGoogleDocsButton');
-        const googleDocsFeedback = document.getElementById('google-docs-feedback');
-
-        // --- 変数 ---
-        let recognition;
+        // 設定 - 実際の値を設定してください
+        const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY'; // ここにGemini API Keyを設定
+        const CLIENT_ID = 'YOUR_CLIENT_ID'; // ここにGoogle OAuth Client IDを設定
+        
+        // グローバル変数
+        let recognition = null;
         let isRecording = false;
-        let finalTranscript = '';
-        let recordingStartTime;
-        let gapiInited = false;
-        let tokenClient;
+        let fullTranscript = '';
+        let interimTranscript = '';
+        let accessToken = null;
+        let tokenClient = null;
+        let recordingStartTime = null;
+        let recordingTimer = null;
 
-        // --- 認証機能 ---
-        window.handleSignIn = function(response) {
-            try {
-                const credential = response.credential;
-                const payloadBase64Url = credential.split('.')[1];
-                const payloadBase64 = payloadBase64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(payloadBase64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-                const userObject = JSON.parse(jsonPayload);
+        // DOM要素
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const generateBtn = document.getElementById('generateBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const authorizeBtn = document.getElementById('authorizeBtn');
+        const signoutBtn = document.getElementById('signoutBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const transcriptDiv = document.getElementById('transcript');
+        const minutesDiv = document.getElementById('minutes');
+        const statusSpan = document.getElementById('status');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const authError = document.getElementById('authError');
+        const authStatusDot = document.getElementById('authStatusDot');
+        const authStatusText = document.getElementById('authStatusText');
+        const recordingTimerSpan = document.getElementById('recordingTimer');
+        const charCountSpan = document.getElementById('charCount');
+        const browserWarning = document.getElementById('browserWarning');
 
-                if (userObject.email && userObject.email.endsWith('@' + ALLOWED_DOMAIN)) {
-                    loginContainer.classList.add('hidden');
-                    mainAppContainer.classList.remove('hidden');
-                } else {
-                    authError.classList.remove('hidden');
-                    google.accounts.id.disableAutoSelect();
-                }
-            } catch (error) {
-                console.error("サインイン処理中にエラー:", error);
-                authError.textContent = "ログイン処理中にエラーが発生しました。";
-                authError.classList.remove('hidden');
-            }
-        };
-
-        // --- Google Docs API連携 ---
-        window.gapiLoaded = function() {
-            gapi.load('client', initializeGapiClient);
-        };
-        async function initializeGapiClient() {
-            await gapi.client.init({ discoveryDocs: GAPI_DISCOVERY_DOCS });
-            gapiInited = true;
-        }
-        
-        sendToGoogleDocsButton.addEventListener('click', () => {
-             tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: GAPI_CLIENT_ID,
-                scope: GAPI_SCOPES,
-                callback: async (resp) => {
-                    if (resp.error !== undefined) {
-                        googleDocsFeedback.textContent = `❌ 認証エラー: ${resp.error}`;
-                        throw (resp);
-                    }
-                    gapi.client.setToken(resp);
-                    googleDocsFeedback.textContent = 'Googleドキュメントを作成中...';
-                    await createGoogleDoc();
-                },
-            });
-
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
-            }
-        });
-
-        async function createGoogleDoc() {
-            try {
-                googleDocsFeedback.textContent = '概要を生成中...';
-                const summaryPrompt = `以下の議事録の要点を、ファイル名に使えるように20文字以内の短いタイトルで要約してください。例: 「新製品の販売戦略について」\n\n---\n${generatedMinutesText.value}`;
-                const summary = await callGeminiAPI(summaryPrompt);
-
-                const date = recordingStartTime;
-                const yymmdd = date.getFullYear().toString().slice(-2) + ('0' + (date.getMonth() + 1)).slice(-2) + ('0' + date.getDate()).slice(-2);
-                const company = clientCompany.value || '社外打合せ';
-                
-                const docTitle = `${yymmdd}_${company}_${summary.replace(/\n/g, '')}`;
-                googleDocsFeedback.textContent = 'ドキュメントを作成中...';
-                
-                const createResponse = await gapi.client.docs.documents.create({ title: docTitle });
-                const docId = createResponse.result.documentId;
-                await gapi.client.docs.documents.batchUpdate({
-                    documentId: docId,
-                    requests: [{ insertText: { location: { index: 1 }, text: generatedMinutesText.value } }],
-                });
-                const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
-                googleDocsFeedback.innerHTML = `✅ <a href="${docUrl}" target="_blank" class="text-blue-500 hover:underline">Googleドキュメントが作成されました。</a>`;
-
-            } catch (err) {
-                googleDocsFeedback.textContent = `❌ エラー: ${err.message}`;
-                console.error(err);
+        // ブラウザチェック
+        function checkBrowser() {
+            const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+            if (!isChrome) {
+                browserWarning.style.display = 'block';
             }
         }
 
-        // --- 初期化 ---
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.lang = 'ja-JP';
-            recognition.interimResults = true;
-            recognition.continuous = true;
+        // 音声認識の初期化
+        function initSpeechRecognition() {
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                
+                if (!SpeechRecognition) {
+                    showError('お使いのブラウザは音声認識に対応していません。Chromeブラウザをご利用ください。');
+                    startBtn.disabled = true;
+                    return false;
+                }
 
-            recognition.onresult = (event) => {
-                let interimTranscript = '';
-                let currentFinalTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        currentFinalTranscript += event.results[i][0].transcript;
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
-                }
-                if (currentFinalTranscript) {
-                    finalTranscript += currentFinalTranscript + '\n';
-                }
-                transcriptionText.value = finalTranscript + interimTranscript;
-                transcriptionText.scrollTop = transcriptionText.scrollHeight;
-            };
-            recognition.onstart = () => updateStatus('recording');
-            recognition.onend = () => {
-                if (isRecording) {
-                    console.log("音声認識が自動停止しました。1秒後に再開します。");
-                    setTimeout(() => recognition.start(), 1000);
-                } else {
-                    updateStatus('idle');
-                }
-            };
-            recognition.onerror = (event) => {
-                console.error('Speech Recognition Error:', event.error, event.message);
-                let userMessage = `エラー: ${event.error}`;
-                if (event.error === 'not-allowed') {
-                    userMessage = 'マイクの使用が許可されていません。';
-                    transcriptionText.value = 'マイクへのアクセスがブロックされました。\n\nブラウザやOSのマイク設定、またこのツールを埋め込んでいるサイトのiframe設定（allow="microphone"）を確認してください。';
-                } else if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'ja-JP';
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    console.log('音声認識開始');
+                    isRecording = true;
+                    statusSpan.textContent = '録音中...';
+                    statusSpan.className = 'status status-recording';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    recordingStartTime = Date.now();
+                    startRecordingTimer();
+                    document.getElementById('permissionInfo').style.display = 'none';
+                };
+
+                recognition.onend = () => {
+                    console.log('音声認識終了');
                     if (isRecording) {
-                        console.warn(`認識エラー(${event.error})のため再開します。`);
-                        recognition.stop();
+                        // 録音中に認識が停止した場合は自動的に再開
+                        setTimeout(() => {
+                            if (isRecording) {
+                                try {
+                                    recognition.start();
+                                } catch (e) {
+                                    console.error('音声認識の再開に失敗:', e);
+                                }
+                            }
+                        }, 500);
+                    } else {
+                        // 録音停止時の処理
+                        statusSpan.textContent = '待機中';
+                        statusSpan.className = 'status status-idle';
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        stopRecordingTimer();
+                        
+                        if (fullTranscript.trim()) {
+                            generateBtn.disabled = false;
+                        }
                     }
-                    return;
-                }
-                updateStatus('error', userMessage);
-                isRecording = false;
-            };
-        } else {
-            startButton.disabled = true;
-            updateStatus('error', 'ブラウザ非対応');
+                };
+
+                recognition.onresult = (event) => {
+                    interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        
+                        if (event.results[i].isFinal) {
+                            fullTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    updateTranscriptDisplay();
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('音声認識エラー:', event.error);
+                    
+                    if (event.error === 'not-allowed') {
+                        showError('マイクへのアクセスが拒否されました。ブラウザの設定でマイクの使用を許可してください。');
+                        stopRecording();
+                    } else if (event.error === 'no-speech') {
+                        console.log('無音を検出しました');
+                    } else if (event.error === 'network') {
+                        showError('ネットワークエラーが発生しました。');
+                    }
+                };
+
+                return true;
+            } catch (error) {
+                console.error('音声認識の初期化エラー:', error);
+                showError('音声認識の初期化に失敗しました。');
+                return false;
+            }
         }
 
-        // --- ボタン操作 ---
-        startButton.addEventListener('click', () => {
-            isRecording = true;
-            if (!recordingStartTime) {
-                recordingStartTime = new Date();
+        // 文字起こし表示の更新
+        function updateTranscriptDisplay() {
+            transcriptDiv.textContent = fullTranscript + interimTranscript;
+            transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+            charCountSpan.textContent = (fullTranscript + interimTranscript).length;
+        }
+
+        // 録音タイマー
+        function startRecordingTimer() {
+            recordingTimerSpan.style.display = 'inline';
+            recordingTimer = setInterval(updateRecordingTimer, 1000);
+        }
+
+        function stopRecordingTimer() {
+            if (recordingTimer) {
+                clearInterval(recordingTimer);
+                recordingTimer = null;
             }
-            if (!finalTranscript) {
-                 transcriptionText.value = '';
-            }
+            recordingTimerSpan.style.display = 'none';
+        }
+
+        function updateRecordingTimer() {
+            if (!recordingStartTime) return;
             
-            recognition.start();
-            startButton.classList.add('hidden');
-            stopButton.classList.remove('hidden');
-            generationForm.classList.add('hidden');
-            minutesContainer.classList.add('hidden');
-            startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音再開';
-        });
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            
+            recordingTimerSpan.textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
 
-        stopButton.addEventListener('click', () => {
+        // 録音停止
+        function stopRecording() {
             isRecording = false;
-            recognition.stop();
-            stopButton.classList.add('hidden');
-            startButton.classList.remove('hidden');
-            if (transcriptionText.value.trim()) {
-                generationForm.classList.remove('hidden');
+            if (recognition) {
+                recognition.stop();
             }
-        });
-        
-        resetButton.addEventListener('click', () => {
-            transcriptionText.value = '';
-            clientCompany.value = '';
-            clientAttendees.value = '';
-            ourAttendees.value = '';
-            generatedMinutesText.value = '';
-            finalTranscript = '';
-            recordingStartTime = null;
-            minutesContainer.classList.add('hidden');
-            generationForm.classList.add('hidden');
-            startButton.classList.remove('hidden');
-            stopButton.classList.add('hidden');
-            googleDocsFeedback.innerHTML = '';
-            sendToGoogleDocsButton.classList.add('hidden');
-            startButton.innerHTML = '<i class="fas fa-microphone-alt mr-2"></i>録音開始';
-            updateStatus('idle');
-        });
+        }
 
-        generateButton.addEventListener('click', async () => {
-            let transcript = transcriptionText.value;
-            if (!transcript.trim()) {
-                alert('文字起こしされたテキストがありません。');
+        // Google API初期化
+        function initGoogleAPI() {
+            if (typeof google === 'undefined' || !google.accounts) {
+                console.error('Google APIが読み込まれていません');
+                showAuthError('Google APIの読み込みに失敗しました。ページを再読み込みしてください。');
                 return;
             }
-            minutesContainer.classList.remove('hidden');
-            loadingSpinner.classList.remove('hidden');
-            generatedMinutesText.value = '';
-            generateButton.disabled = true;
-
-            transcript = transcript.replace(/ぞうほう/g, 'Zoho');
-
-            const formattedStartTime = recordingStartTime.toLocaleString('ja-JP', {
-                year: 'numeric', month: 'numeric', day: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-
-            const prompt = `あなたは優秀なアシスタントです。以下の会議情報と文字起こしテキストを基に、ビジネスで通用する議事録を作成してください。
-
-# 会議情報
-- 日時: ${formattedStartTime}
-- 相手の会社名: ${clientCompany.value || '記載なし'}
-- 相手の会社の参加者: ${clientAttendees.value || '記載なし'}
-- 自社の参加者: ${ourAttendees.value || '記載なし'}
-
-# 文字起こしテキスト
----
-${transcript}
----
-
-# 生成する議事録のフォーマット
-見出しは「【】」で囲み、箇条書きは「・」を使用してください。Markdownの「##」や「**」は使用しないでください。
-
-【会議日時】
-・${formattedStartTime}
-
-【参加者】
-・相手先: ${clientCompany.value || '(会社名未入力)'} ${clientAttendees.value || ''}
-・自社: ${ourAttendees.value || ''}
-
-【会議の概要】
-・
-
-【決定事項】
-・
-
-【アクションアイテム】
-・担当者: 
-・期限: 
-
-【議論の詳細】
-・`;
 
             try {
-                const minutesText = await callGeminiAPI(prompt);
-                generatedMinutesText.value = minutesText;
-                sendToGoogleDocsButton.classList.remove('hidden');
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file',
+                    callback: async (response) => {
+                        if (response.error !== undefined) {
+                            showAuthError('Google認証に失敗しました: ' + response.error);
+                            return;
+                        }
+                        accessToken = response.access_token;
+                        
+                        // ユーザー情報を取得して社内メンバーかチェック
+                        try {
+                            const userInfo = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                                headers: {
+                                    'Authorization': `Bearer ${accessToken}`
+                                }
+                            });
+                            const userData = await userInfo.json();
+                            
+                            // 特定のドメインのみ許可（例：@yourcompany.com）
+                            const ALLOWED_DOMAINS = ['yourcompany.com', 'gmail.com']; // 許可するドメインを設定
+                            const emailDomain = userData.email.split('@')[1];
+                            
+                            if (!ALLOWED_DOMAINS.includes(emailDomain)) {
+                                showAuthError('このツールは社内メンバーのみ利用可能です。');
+                                accessToken = null;
+                                return;
+                            }
+                            
+                            updateAuthStatus(true);
+                            showSuccess(`Google認証に成功しました (${userData.email})`);
+                        } catch (error) {
+                            console.error('ユーザー情報取得エラー:', error);
+                            showAuthError('ユーザー情報の取得に失敗しました。');
+                        }
+                    },
+                    hosted_domain: 'yourcompany.com' // 特定のドメインに制限する場合
+                });
             } catch (error) {
-                generatedMinutesText.value = '議事録の生成中にエラーが発生しました。\n' + error.message;
-            } finally {
-                loadingSpinner.classList.add('hidden');
-                generateButton.disabled = false;
+                console.error('Google API初期化エラー:', error);
+                showAuthError('Google APIの初期化に失敗しました。');
             }
-        });
-        
-        async function callGeminiAPI(prompt) {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error.message || 'APIからの応答エラー');
-            }
-            const result = await response.json();
-            if (result.candidates && result.candidates.length > 0) {
-                return result.candidates[0].content.parts[0].text;
+        }
+
+        // 認証状態の更新
+        function updateAuthStatus(isAuthenticated) {
+            if (isAuthenticated) {
+                authStatusDot.className = 'status-dot connected';
+                authStatusText.textContent = 'Google認証済み';
+                authorizeBtn.style.display = 'none';
+                signoutBtn.style.display = 'inline-block';
+                if (minutesDiv.textContent && minutesDiv.textContent !== '生成された議事録がここに表示されます...') {
+                    document.getElementById('uploadSection').style.display = 'block';
+                }
             } else {
-                throw new Error('AIからの応答がありませんでした。');
+                authStatusDot.className = 'status-dot disconnected';
+                authStatusText.textContent = 'Google未認証';
+                authorizeBtn.style.display = 'inline-block';
+                signoutBtn.style.display = 'none';
+                document.getElementById('uploadSection').style.display = 'none';
+                accessToken = null;
             }
         }
 
-        copyButton.addEventListener('click', () => {
-            if (generatedMinutesText.value) {
-                generatedMinutesText.select();
-                document.execCommand('copy');
-                alert('議事録をコピーしました。');
+        // Gemini APIで議事録生成
+        async function generateMinutes() {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+                showError('Gemini API Keyが設定されていません。');
+                return;
             }
-        });
 
-        function updateStatus(status, message = '') {
-            const dot = statusElement.querySelector('.status-dot');
-            const text = statusElement.querySelector('span');
-            dot.className = 'status-dot w-3 h-3 rounded-full';
-            switch (status) {
-                case 'recording':
-                    dot.classList.add('bg-green-500', 'status-dot-pulse');
-                    text.textContent = '録音中...';
-                    break;
-                case 'error':
-                    dot.classList.add('bg-red-500');
-                    text.textContent = message;
-                    break;
-                case 'idle':
-                default:
-                    dot.classList.add('bg-gray-400');
-                    text.textContent = '待機中';
-                    break;
+            if (!fullTranscript.trim()) {
+                showError('文字起こしされた内容がありません');
+                return;
+            }
+
+            document.getElementById('generateLoading').classList.add('active');
+            generateBtn.disabled = true;
+            hideMessages();
+
+            const ourCompany = document.getElementById('ourCompany').value || 'リクト';
+            const theirCompany = document.getElementById('theirCompany').value || '先方';
+            const ourAttendees = document.getElementById('ourAttendees').value || '自社参加者';
+            const theirAttendees = document.getElementById('theirAttendees').value || '先方参加者';
+
+            const prompt = `
+以下の会議の文字起こしから議事録を作成してください。
+
+【会議情報】
+日時: ${new Date().toLocaleString('ja-JP')}
+自社: ${ourCompany}
+先方: ${theirCompany}
+自社参加者: ${ourAttendees}
+先方参加者: ${theirAttendees}
+
+【文字起こし内容】
+${fullTranscript}
+
+【議事録形式】
+以下の形式で議事録を作成してください：
+
+1. 会議概要
+   - 日時
+   - 参加者（自社・先方）
+   - 議題
+
+2. 議論内容（要点を箇条書きで）
+
+3. 決定事項
+   - 明確に決定された事項を箇条書きで記載
+   - 各項目は具体的で実行可能な内容にする
+
+4. ネクストアクション
+   - 誰が（担当者名）
+   - いつまでに（具体的な期限）
+   - 何をするか（具体的な行動）
+   - 優先度（高/中/低）
+
+5. 今後の予定
+   - 次回会議の予定
+   - マイルストーン
+
+6. 備考・補足事項
+`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: prompt
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.7,
+                            topK: 1,
+                            topP: 1,
+                            maxOutputTokens: 4096,
+                        }
+                    }),
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error?.message || 'APIリクエストに失敗しました');
+                }
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    const minutes = data.candidates[0].content.parts[0].text;
+                    minutesDiv.textContent = minutes;
+                    minutesDiv.style.display = 'block';
+                    showSuccess('議事録の生成が完了しました');
+                    
+                    if (accessToken) {
+                        document.getElementById('uploadSection').style.display = 'block';
+                    }
+                } else {
+                    throw new Error('議事録の生成に失敗しました');
+                }
+            } catch (error) {
+                showError('エラー: ' + error.message);
+                console.error('議事録生成エラー:', error);
+            } finally {
+                document.getElementById('generateLoading').classList.remove('active');
+                generateBtn.disabled = false;
             }
         }
-    </script>
-</body>
-</html>
+
+        // Google Docsへアップロード
+        async function uploadToGoogleDocs() {
+            if (!accessToken) {
+                showError('Googleアカウントにログインしてください');
+                return;
+            }
+
+            const minutes = minutesDiv.textContent;
+            if (!minutes || minutes === '生成された議事録がここに表示されます...') {
+                showError('アップロードする議事録がありません');
+                return;
+            }
+
+            document.getElementById('uploadLoading').classList.add('active');
+            uploadBtn.disabled = true;
+            hideMessages();
+
+            try {
+                // Google Docs APIを使用してドキュメントを作成
+                const createResponse = await fetch('https://docs.googleapis.com/v1/documents', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: `議事録_${new Date().toLocaleString('ja-JP').replace(/[/:]/g, '-')}`
+                    }),
+                });
+
+                if (!createResponse.ok) {
+                    const error = await createResponse.json();
+                    throw new Error(error.error?.message || 'ドキュメントの作成に失敗しました');
+                }
+
+                const doc = await createResponse.json();
+                const documentId = doc.documentId;
+
+                // ドキュメントに内容を挿入
+                const updateResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        requests: [{
+                            insertText: {
+                                location: { index: 1 },
+                                text: minutes
+                            }
+                        }]
+                    }),
+                });
+
+                if (!updateResponse.ok) {
+                    const error = await updateResponse.json();
+                    throw new Error(error.error?.message || 'ドキュメントの更新に失敗しました');
+                }
+
+                showSuccess(`議事録をGoogle Docsにアップロードしました。<br><a href="https://docs.google.com/document/d/${documentId}/edit" target="_blank" style="color: #1976d2;">ドキュメントを開く</a>`);
+            } catch (error) {
+                showError('アップロードエラー: ' + error.message);
+                console.error('アップロードエラー:', error);
+            } finally {
+                document.getElementById('uploadLoading').classList.remove('active');
+                uploadBtn.disabled = false;
+            }
+        }
+
+        // メッセージ表示関数
+        function showError(message) {
+            errorMessage.innerHTML = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            successMessage.innerHTML = message;
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        function showAuthError(message) {
+            authError.textContent = message;
+            authError.style.display = 'block';
+        }
+
+        function hideMessages() {
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            authError.style.display = 'none';
+        }
+
+        // イベントリスナー
+        startBtn.addEventListener('click', async () => {
+            console.log('録音開始ボタンがクリックされました');
+            
+            if (!recognition) {
+                showError('音声認識が初期化されていません。ページを再読み込みしてください。');
+                return;
+            }
+
+            try {
+                // マイクの許可を明示的に要求
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                recognition.start();
+            } catch (error) {
+                console.error('録音開始エラー:', error);
+                if (error.name === 'NotAllowedError') {
+                    showError('マイクへのアクセスが拒否されました。ブラウザの設定でマイクの使用を許可してください。');
+                } else if (error.name === 'NotFoundError') {
+                    showError('マイクが見つかりません。マイクが接続されている
