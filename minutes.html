@@ -379,7 +379,7 @@
     <script src="https://accounts.google.com/gsi/client"></script>
     <script>
         // 設定
-        const CLIENT_ID = '938315323117-182jbc9r2k4itei0g1e3v3fbafvbuqp9.apps.googleusercontent.com'; // ここに実際のClient IDを設定（例: 123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com）
+        const CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com'; // ここに実際のClient IDを設定（例: 123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com）
         const SCOPES = 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file';
         
         // グローバル変数
@@ -756,6 +756,16 @@ ${transcriptText}
             hideMessages();
 
             try {
+                // 日付フォーマット（YYYYMMDD）
+                const now = new Date();
+                const dateStr = now.getFullYear() + 
+                    String(now.getMonth() + 1).padStart(2, '0') + 
+                    String(now.getDate()).padStart(2, '0');
+                
+                // ドキュメントタイトル
+                const clientCompany = document.getElementById('theirCompany').value || 'クライアント';
+                const documentTitle = `${dateStr}_${clientCompany}_議事録`;
+
                 // Google Docs APIでドキュメントを作成
                 const createResponse = await fetch('https://docs.googleapis.com/v1/documents', {
                     method: 'POST',
@@ -764,7 +774,7 @@ ${transcriptText}
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        title: `議事録_${document.getElementById('theirCompany').value || '会議'}_${new Date().toLocaleString('ja-JP').replace(/[/:]/g, '-')}`
+                        title: documentTitle
                     }),
                 });
 
@@ -776,6 +786,12 @@ ${transcriptText}
                 const doc = await createResponse.json();
                 const documentId = doc.documentId;
 
+                // 議事録をセクションごとに分割
+                const sections = parseMinutesToSections(minutes);
+                
+                // Google Docsのリクエストを構築
+                const requests = buildGoogleDocsRequests(sections);
+
                 // ドキュメントに内容を挿入
                 const updateResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
                     method: 'POST',
@@ -783,14 +799,7 @@ ${transcriptText}
                         'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        requests: [{
-                            insertText: {
-                                location: { index: 1 },
-                                text: minutes
-                            }
-                        }]
-                    }),
+                    body: JSON.stringify({ requests }),
                 });
 
                 if (!updateResponse.ok) {
@@ -811,6 +820,183 @@ ${transcriptText}
                 document.getElementById('uploadLoading').classList.remove('active');
                 document.getElementById('uploadBtn').disabled = false;
             }
+        }
+
+        // 議事録をセクションに分割
+        function parseMinutesToSections(minutes) {
+            const sections = [];
+            const lines = minutes.split('\n');
+            let currentSection = null;
+            let currentContent = [];
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                
+                // セクションヘッダーの検出
+                if (trimmedLine.match(/^[0-9]+\.\s+(.+)$/)) {
+                    // 前のセクションを保存
+                    if (currentSection) {
+                        sections.push({
+                            title: currentSection,
+                            content: currentContent.join('\n').trim()
+                        });
+                    }
+                    currentSection = trimmedLine;
+                    currentContent = [];
+                } else if (trimmedLine) {
+                    currentContent.push(line);
+                }
+            }
+
+            // 最後のセクションを保存
+            if (currentSection) {
+                sections.push({
+                    title: currentSection,
+                    content: currentContent.join('\n').trim()
+                });
+            }
+
+            return sections;
+        }
+
+        // Google Docsのリクエストを構築
+        function buildGoogleDocsRequests(sections) {
+            const requests = [];
+            let currentIndex = 1;
+
+            // タイトルを挿入
+            const now = new Date();
+            const titleText = `議事録\n\n日付: ${now.toLocaleDateString('ja-JP')}\n\n`;
+            
+            requests.push({
+                insertText: {
+                    location: { index: currentIndex },
+                    text: titleText
+                }
+            });
+            currentIndex += titleText.length;
+
+            // タイトルのスタイルを設定
+            requests.push({
+                updateTextStyle: {
+                    range: {
+                        startIndex: 1,
+                        endIndex: 4
+                    },
+                    textStyle: {
+                        fontSize: {
+                            magnitude: 24,
+                            unit: 'PT'
+                        },
+                        bold: true
+                    },
+                    fields: 'fontSize,bold'
+                }
+            });
+
+            // 各セクションを挿入
+            for (const section of sections) {
+                // セクションタイトル
+                const sectionTitle = section.title + '\n';
+                requests.push({
+                    insertText: {
+                        location: { index: currentIndex },
+                        text: sectionTitle
+                    }
+                });
+                
+                // セクションタイトルのスタイル
+                requests.push({
+                    updateTextStyle: {
+                        range: {
+                            startIndex: currentIndex,
+                            endIndex: currentIndex + sectionTitle.length - 1
+                        },
+                        textStyle: {
+                            fontSize: {
+                                magnitude: 14,
+                                unit: 'PT'
+                            },
+                            bold: true,
+                            foregroundColor: {
+                                color: {
+                                    rgbColor: {
+                                        red: 0.2,
+                                        green: 0.2,
+                                        blue: 0.8
+                                    }
+                                }
+                            }
+                        },
+                        fields: 'fontSize,bold,foregroundColor'
+                    }
+                });
+                currentIndex += sectionTitle.length;
+
+                // セクション内容
+                if (section.content) {
+                    const contentText = section.content + '\n\n';
+                    requests.push({
+                        insertText: {
+                            location: { index: currentIndex },
+                            text: contentText
+                        }
+                    });
+
+                    // 箇条書きの処理
+                    const contentLines = contentText.split('\n');
+                    let lineStartIndex = currentIndex;
+                    
+                    for (const line of contentLines) {
+                        if (line.trim().startsWith('-') || line.trim().startsWith('・')) {
+                            // 箇条書きのインデント
+                            requests.push({
+                                updateParagraphStyle: {
+                                    range: {
+                                        startIndex: lineStartIndex,
+                                        endIndex: lineStartIndex + line.length
+                                    },
+                                    paragraphStyle: {
+                                        indentFirstLine: {
+                                            magnitude: 36,
+                                            unit: 'PT'
+                                        },
+                                        indentStart: {
+                                            magnitude: 36,
+                                            unit: 'PT'
+                                        }
+                                    },
+                                    fields: 'indentFirstLine,indentStart'
+                                }
+                            });
+                        }
+                        lineStartIndex += line.length + 1;
+                    }
+                    
+                    currentIndex += contentText.length;
+                }
+            }
+
+            // 全体のフォント設定
+            requests.push({
+                updateDocumentStyle: {
+                    documentStyle: {
+                        defaultHeaderId: '',
+                        defaultFooterId: '',
+                        pageSize: {
+                            height: { magnitude: 841.8897637795276, unit: 'PT' },
+                            width: { magnitude: 595.2755905511812, unit: 'PT' }
+                        },
+                        marginTop: { magnitude: 72, unit: 'PT' },
+                        marginBottom: { magnitude: 72, unit: 'PT' },
+                        marginRight: { magnitude: 72, unit: 'PT' },
+                        marginLeft: { magnitude: 72, unit: 'PT' }
+                    },
+                    fields: 'defaultHeaderId,defaultFooterId,pageSize,marginTop,marginBottom,marginRight,marginLeft'
+                }
+            });
+
+            return requests;
         }
 
         // ダウンロード
