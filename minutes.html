@@ -1,1 +1,1529 @@
-test
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>時間計測＆タスク管理ツール</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #1a237e;
+            margin-bottom: 20px;
+        }
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            background-color: #e0e0e0;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+        }
+        .tab-button.active {
+            background-color: #fff;
+            color: #1a237e;
+            border-bottom: 2px solid #1a237e;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .controls-top {
+            display: flex;
+            gap: 10px;
+        }
+        #taskName, #categorySelect, #taskInputName, #taskInputMemo {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+        }
+        #taskInputDate {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .timer-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .timer-button {
+            flex: 1;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #startBtn {
+            background-color: #4CAF50;
+        }
+        #startBtn:disabled {
+            background-color: #a5d6a7;
+            cursor: not-allowed;
+        }
+        #stopBtn {
+            background-color: #f44336;
+        }
+        #stopBtn:disabled {
+            background-color: #ef9a9a;
+            cursor: not-allowed;
+        }
+        #timerDisplay {
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #0d47a1;
+        }
+        .statistics {
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            flex-wrap: wrap;
+        }
+        .statistic-item {
+            padding: 5px;
+            min-width: 120px;
+        }
+        .statistic-item span {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: block;
+            color: #0d47a1;
+        }
+        .statistic-item small {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .history-container {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #cfe2f3;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .accordion-header:hover {
+            background-color: #b3d1f0;
+        }
+        .accordion-content {
+            list-style-type: none;
+            padding: 0;
+            margin: 0 0 15px 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.open {
+            max-height: 500px;
+            transition: max-height 0.5s ease-in;
+        }
+        .history-item, .task-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .history-item-details, .task-details {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .history-item-name, .task-name {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        .task-meta {
+            color: #666;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .history-buttons, .task-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .copy-btn, .delete-btn, .restart-btn, .complete-btn, .task-delete-btn, .duplicate-btn, .edit-date-btn {
+            background-color: #9e9e9e;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background-color 0.3s ease;
+        }
+        .copy-btn:hover { background-color: #5d97f2; }
+        .delete-btn:hover, .task-delete-btn:hover { background-color: #757575; }
+        .restart-btn { background-color: #1a237e; }
+        .restart-btn:hover { background-color: #0d47a1; }
+        .complete-btn { background-color: #4CAF50; }
+        .complete-btn:hover { background-color: #45a049; }
+        .duplicate-btn { background-color: #f57c00; }
+        .duplicate-btn:hover { background-color: #e65100; }
+        .edit-date-btn { background-color: #03a9f4; }
+        .edit-date-btn:hover { background-color: #0288d1; }
+        .accordion-icon {
+            margin-left: 10px;
+            transition: transform 0.3s ease;
+        }
+        .accordion-icon.rotated {
+            transform: rotate(90deg);
+        }
+        .ai-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .ai-button {
+            flex: 1;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            background-color: #673ab7;
+        }
+        .ai-button:hover {
+            background-color: #5e35b1;
+        }
+        .ai-output-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e8f5e9;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .ai-output-container h4 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .ai-output-text {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            color: #444;
+        }
+        .loading-indicator {
+            text-align: center;
+            color: #757575;
+            font-style: italic;
+        }
+        .task-item.completed {
+            background-color: #f1f8e9;
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        #tasks-container {
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+        }
+        #today-tasks-list, #upcoming-tasks-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .task-item {
+            cursor: pointer;
+        }
+        .task-item.draggable {
+             cursor: grab;
+        }
+        .task-item.dragging {
+            opacity: 0.5;
+        }
+        .task-memo-text {
+            white-space: pre-wrap;
+            margin-top: 5px;
+            font-style: italic;
+            font-size: 0.9rem;
+            color: #777;
+            cursor: text;
+            max-height: 1.2em; /* 1行分の高さ */
+            overflow: hidden;
+            position: relative;
+        }
+        .task-memo-text.expanded {
+            max-height: none;
+        }
+        .read-more {
+            color: #1a237e;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .modal-content h4 {
+            margin-top: 0;
+        }
+        .modal-content input, .modal-content button, .modal-content textarea {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .csv-controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .csv-controls textarea {
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .task-tags {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .task-tag {
+            background-color: #e0e0e0;
+            color: #666;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            line-height: 1.2;
+            font-size: 0.8rem;
+        }
+        .task-tag.active {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .star-icon {
+            color: #ccc;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            font-size: 1.2rem;
+        }
+        .star-icon.active {
+            color: #ffeb3b;
+        }
+        .task-header {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 1rem;
+        }
+        .task-list-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .task-list-header h3 {
+            margin: 0;
+        }
+        .info-tooltip {
+            position: relative;
+            display: inline-block;
+            vertical-align: middle;
+            margin-top: -3px;
+        }
+        .info-tooltip .tooltiptext {
+            visibility: hidden;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            width: 250px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .info-tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent;
+        }
+        .info-tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        .task-name-with-details {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .task-meta-info {
+            display: flex;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: #666;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .task-meta-info .task-tag {
+            font-size: 0.8em;
+            line-height: 1.2;
+            padding: 2px 8px;
+            height: fit-content;
+        }
+        
+        @media (max-width: 480px) {
+            .controls-top {
+                flex-direction: column;
+            }
+            .timer-buttons, .ai-buttons {
+                flex-direction: column;
+            }
+            .statistic-item {
+                flex: 1 1 100%;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h2>時間計測＆タスク管理ツール</h2>
+
+    <div class="tab-container">
+        <button class="tab-button active" data-tab="timer">計測</button>
+        <button class="tab-button" data-tab="tasks">タスク管理</button>
+    </div>
+
+    <!-- Timer Tab -->
+    <div id="timer" class="tab-content active">
+        <div class="controls">
+            <div class="controls-top">
+                <input type="text" id="taskName" placeholder="タスク名を入力...">
+                <select id="categorySelect">
+                    <option value="">カテゴリを選択</option>
+                    <option value="制作売上/Zoho以外">制作売上/Zoho以外</option>
+                    <option value="制作売上/Zoho構築">制作売上/Zoho構築</option>
+                    <option value="システム売上">システム売上</option>
+                    <option value="月次売上/Zoho以外">月次売上/Zoho以外</option>
+                    <option value="月次売上/Zohoサポート">月次売上/Zohoサポート</option>
+                    <option value="月次売上/Zohoアカウント">月次売上/Zohoアカウント</option>
+                    <option value="その他制作売上">その他制作売上</option>
+                    <option value="出稿手数料">出稿手数料</option>
+                    <option value="その他売上/未区分">その他売上/未区分</option>
+                    <option value="その他売上/印刷等">その他売上/印刷等</option>
+                    <option value="その他売上/3Dプリンタ">その他売上/3Dプリンタ</option>
+                    <option value="未該当">未該当</option>
+                </select>
+            </div>
+            <div class="timer-buttons">
+                <button id="startBtn" class="timer-button"><i class="fas fa-play"></i> 開始</button>
+                <button id="stopBtn" class="timer-button" disabled><i class="fas fa-stop"></i> 停止</button>
+            </div>
+        </div>
+
+        <div id="timerDisplay">00:00:00</div>
+
+        <div class="statistics">
+            <div class="statistic-item">
+                <small>今日の合計</small>
+                <span id="totalToday">00:00:00</span>
+            </div>
+            <div class="statistic-item">
+                <small>今週の合計</small>
+                <span id="totalWeek">00:00:00</span>
+            </div>
+            <div class="statistic-item">
+                <small>完了タスク数</small>
+                <span id="completedTasks">0</span>
+            </div>
+        </div>
+
+        <div class="history-container">
+            <h3>計測履歴（7日分）</h3>
+            <div id="historyAccordion"></div>
+        </div>
+
+        <div class="ai-buttons">
+            <button id="summarizeBtn" class="ai-button">✨ 今日の作業を要約</button>
+            <button id="suggestBtn" class="ai-button">✨ 次のステップを提案</button>
+        </div>
+
+        <div id="aiOutput" class="ai-output-container" style="display: none;">
+            <h4 id="aiOutputTitle"></h4>
+            <div id="aiOutputContent" class="ai-output-text"></div>
+        </div>
+    </div>
+
+    <!-- Task Management Tab -->
+    <div id="tasks" class="tab-content">
+        <h3>タスクの新規登録</h3>
+        <div class="controls">
+            <input type="text" id="taskInputName" placeholder="タスク名">
+            <input type="date" id="taskInputDate">
+            <textarea id="taskInputMemo" rows="3" placeholder="タスクメモ"></textarea>
+            <button id="addTaskBtn" class="timer-button" style="background-color: #3f51b5;">タスク登録</button>
+        </div>
+
+        <div id="csv-container">
+            <div class="accordion-header" id="csvHeader">
+                <span>CSVで一括登録</span>
+                <i class="fas fa-chevron-right accordion-icon"></i>
+            </div>
+            <div class="accordion-content" id="csvContent">
+                <div class="csv-controls">
+                    <p style="font-size: 0.9rem; color: #555;">形式: `タスク名,実行予定日,タスクメモ`（例: `デザイン修正,2025-08-20,トップページ`）</p>
+                    <textarea id="csvInput" placeholder="ここにCSVデータを貼り付けてください"></textarea>
+                    <button id="addCsvBtn" class="timer-button" style="background-color: #2196f3;">CSVで一括登録</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="task-list-header">
+            <h3>本日のタスク</h3>
+            <div class="info-tooltip">
+                <i class="fas fa-info-circle"></i>
+                <span class="tooltiptext">タスクをクリックすると計測タブに読み込まれます。<br>当日のタスクはドラッグ＆ドロップで並び替え可能です。</span>
+            </div>
+        </div>
+        <div id="tasks-container">
+            <ul id="today-tasks-list"></ul>
+        </div>
+        
+        <div class="task-list-header">
+            <h3 style="margin-top: 20px;">未完了タスク</h3>
+            <div class="info-tooltip" style="margin-top: 20px;">
+                <i class="fas fa-info-circle"></i>
+                <span class="tooltiptext">並び順: 星マークがあるタスク > 日付の古い順 > 日付未設定のタスク</span>
+            </div>
+        </div>
+        <div id="tasks-container">
+            <ul id="upcoming-tasks-list"></ul>
+        </div>
+        
+        <div id="completed-tasks-container">
+            <div class="accordion-header" id="completedTasksHeader">
+                <span>完了済みタスク</span>
+                <i class="fas fa-chevron-right accordion-icon"></i>
+            </div>
+            <div class="accordion-content" id="completedTasksContent">
+                <ul id="completed-tasks-list"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Duplicate Modal -->
+    <div id="duplicateModal" class="modal">
+        <div class="modal-content">
+            <h4>タスクの複製</h4>
+            <input type="date" id="duplicateDate">
+            <div class="modal-buttons">
+                <button id="duplicateConfirmBtn" class="timer-button" style="background-color: #f57c00;">複製</button>
+                <button id="duplicateCancelBtn" class="timer-button" style="background-color: #9e9e9e;">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Date Modal -->
+    <div id="editDateModal" class="modal">
+        <div class="modal-content">
+            <h4>日付変更</h4>
+            <input type="date" id="editDateInput">
+            <div class="modal-buttons">
+                <button id="editDateConfirmBtn" class="timer-button" style="background-color: #03a9f4;">変更</button>
+                <button id="editDateCancelBtn" class="timer-button" style="background-color: #9e9e9e;">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Memo Modal -->
+    <div id="editMemoModal" class="modal">
+        <div class="modal-content">
+            <h4>タスクメモ編集</h4>
+            <textarea id="editMemoText" rows="5"></textarea>
+            <div class="modal-buttons">
+                <button id="editMemoConfirmBtn" class="timer-button" style="background-color: #3f51b5;">保存</button>
+                <button id="editMemoCancelBtn" class="timer-button" style="background-color: #9e9e9e;">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let timerInterval;
+        let startTime;
+        let isRunning = false;
+        let historyData = [];
+        let tasksData = [];
+        let currentEditingIndex = -1;
+        let taskToDuplicate = null;
+        let taskToEditDate = null;
+        let taskToEditMemo = null;
+
+        const taskNameInput = document.getElementById('taskName');
+        const categorySelect = document.getElementById('categorySelect');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const historyAccordion = document.getElementById('historyAccordion');
+        const totalTodaySpan = document.getElementById('totalToday');
+        const totalWeekSpan = document.getElementById('totalWeek');
+        const completedTasksSpan = document.getElementById('completedTasks');
+        
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const suggestBtn = document.getElementById('suggestBtn');
+        const aiOutput = document.getElementById('aiOutput');
+        const aiOutputTitle = document.getElementById('aiOutputTitle');
+        const aiOutputContent = document.getElementById('aiOutputContent');
+        const geminiApiKey = 'AIzaSyDOd05QUw1cvYHaWKBbFUjeyGGill6bApQ';
+
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        const taskInputName = document.getElementById('taskInputName');
+        const taskInputDate = document.getElementById('taskInputDate');
+        const taskInputMemo = document.getElementById('taskInputMemo');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+        const csvInput = document.getElementById('csvInput');
+        const addCsvBtn = document.getElementById('addCsvBtn');
+        const csvHeader = document.getElementById('csvHeader');
+        const csvContent = document.getElementById('csvContent');
+        const todayTasksList = document.getElementById('today-tasks-list');
+        const upcomingTasksList = document.getElementById('upcoming-tasks-list');
+        const completedTasksList = document.getElementById('completed-tasks-list');
+        const completedTasksHeader = document.getElementById('completedTasksHeader');
+        const completedTasksContent = document.getElementById('completedTasksContent');
+        
+        const duplicateModal = document.getElementById('duplicateModal');
+        const duplicateDateInput = document.getElementById('duplicateDate');
+        const duplicateConfirmBtn = document.getElementById('duplicateConfirmBtn');
+        const duplicateCancelBtn = document.getElementById('duplicateCancelBtn');
+
+        const editDateModal = document.getElementById('editDateModal');
+        const editDateInput = document.getElementById('editDateInput');
+        const editDateConfirmBtn = document.getElementById('editDateConfirmBtn');
+        const editDateCancelBtn = document.getElementById('editDateCancelBtn');
+        
+        const editMemoModal = document.getElementById('editMemoModal');
+        const editMemoTextarea = document.getElementById('editMemoText');
+        const editMemoConfirmBtn = document.getElementById('editMemoConfirmBtn');
+        const editMemoCancelBtn = document.getElementById('editMemoCancelBtn');
+
+
+        window.addEventListener('load', () => {
+            const storedHistory = localStorage.getItem('timerHistory');
+            if (storedHistory) {
+                historyData = JSON.parse(storedHistory);
+                trimHistoryToSevenDays();
+                renderHistory();
+                updateStatistics();
+            }
+            const storedTasks = localStorage.getItem('tasksData');
+            if (storedTasks) {
+                tasksData = JSON.parse(storedTasks);
+                renderTasks();
+            }
+        });
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                button.classList.add('active');
+                document.getElementById(button.dataset.tab).classList.add('active');
+            });
+        });
+
+        startBtn.addEventListener('click', () => {
+            if (isRunning) return;
+
+            const taskName = taskNameInput.value.trim();
+            const taskCategory = categorySelect.value || '未該当';
+            if (!taskName) {
+                alert('タスク名を入力してください。');
+                return;
+            }
+
+            isRunning = true;
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            
+            if (currentEditingIndex === -1) {
+                const newEntry = { name: taskName, category: taskCategory, duration: 0, timestamp: startTime };
+                historyData.unshift(newEntry);
+                currentEditingIndex = 0;
+            }
+
+            renderHistoryAndOpenAccordion(historyData[currentEditingIndex]);
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (!isRunning) return;
+
+            clearInterval(timerInterval);
+            isRunning = false;
+            
+            const elapsedTime = Date.now() - startTime;
+            
+            if (currentEditingIndex !== -1) {
+                historyData[currentEditingIndex].duration += elapsedTime;
+            } else {
+                const taskName = taskNameInput.value.trim() || '未該当';
+                const taskCategory = categorySelect.value || '未該当';
+                const newEntry = { name: taskName, category: taskCategory, duration: elapsedTime, timestamp: startTime };
+                historyData.unshift(newEntry);
+            }
+
+            saveHistory();
+            renderHistory();
+            updateStatistics();
+
+            timerDisplay.textContent = '00:00:00';
+            taskNameInput.value = '';
+            categorySelect.value = '';
+            currentEditingIndex = -1;
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+
+        summarizeBtn.addEventListener('click', () => generateGeminiOutput('summary'));
+        suggestBtn.addEventListener('click', () => generateGeminiOutput('suggestion'));
+        
+        addTaskBtn.addEventListener('click', () => {
+            const name = taskInputName.value.trim();
+            const date = taskInputDate.value;
+            const memo = taskInputMemo.value.trim();
+            
+            if (!name) {
+                alert('タスク名を入力してください。');
+                return;
+            }
+
+            const newTask = {
+                id: Date.now(),
+                name,
+                date: date || '未設定',
+                memo,
+                completed: false,
+                isPending: false,
+                isStarred: false
+            };
+            
+            tasksData.push(newTask);
+            saveTasks();
+            renderTasks();
+            
+            taskInputName.value = '';
+            taskInputDate.value = '';
+            taskInputMemo.value = '';
+        });
+
+        addCsvBtn.addEventListener('click', () => {
+            const csvData = csvInput.value.trim();
+            if (!csvData) {
+                alert('CSVデータを貼り付けてください。');
+                return;
+            }
+
+            const lines = csvData.split('\n');
+            const newTasks = lines.map(line => {
+                const [name, date, memo] = line.split(',');
+                if (!name) return null;
+                return {
+                    id: Date.now() + Math.random(),
+                    name: name.trim(),
+                    date: date ? date.trim() : '未設定',
+                    memo: memo ? memo.trim() : '',
+                    completed: false,
+                    isPending: false,
+                    isStarred: false
+                };
+            }).filter(task => task !== null);
+
+            tasksData.push(...newTasks);
+            saveTasks();
+            renderTasks();
+            csvInput.value = '';
+        });
+        
+        completedTasksHeader.addEventListener('click', () => {
+            completedTasksContent.classList.toggle('open');
+            completedTasksHeader.querySelector('.accordion-icon').classList.toggle('rotated');
+        });
+
+        csvHeader.addEventListener('click', () => {
+            csvContent.classList.toggle('open');
+            csvHeader.querySelector('.accordion-icon').classList.toggle('rotated');
+        });
+
+        function renderTasks() {
+            todayTasksList.innerHTML = '';
+            upcomingTasksList.innerHTML = '';
+            completedTasksList.innerHTML = '';
+            const today = new Date().toISOString().split('T')[0];
+            
+            const todayTasks = tasksData.filter(task => task.date === today && !task.completed);
+            const upcomingTasks = tasksData.filter(task => (task.date > today || task.date === '未設定') && !task.completed);
+            const completed = tasksData.filter(task => task.completed);
+            
+            upcomingTasks.sort((a, b) => {
+                if (a.isStarred && !b.isStarred) return -1;
+                if (!a.isStarred && b.isStarred) return 1;
+                
+                if (a.date === '未設定' && b.date !== '未設定') return 1;
+                if (a.date !== '未設定' && b.date === '未設定') return -1;
+
+                return new Date(a.date) - new Date(b.date);
+            });
+
+            completed.sort((a, b) => b.id - a.id);
+
+            todayTasks.forEach(task => addTodayTaskItem(task));
+            upcomingTasks.forEach(task => addUpcomingTaskItem(task));
+            completed.forEach(task => addCompletedTaskItem(task));
+        }
+
+        function formatMemoText(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, `<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>`);
+        }
+        
+        function addTodayTaskItem(task) {
+            const taskItem = document.createElement('li');
+            taskItem.classList.add('task-item', 'draggable');
+            taskItem.draggable = true;
+            taskItem.dataset.id = task.id;
+            
+            const isStarredClass = task.isStarred ? 'active' : '';
+            const pendingTagClass = task.isPending ? 'active' : '';
+
+            taskItem.innerHTML = `
+                <div class="task-details">
+                    <div class="task-header">
+                        <span class="star-icon ${isStarredClass}" data-id="${task.id}"><i class="fas fa-star"></i></span>
+                        <span class="task-name">${task.name}</span>
+                    </div>
+                    <div class="task-meta-info">
+                        <span class="task-tag ${pendingTagClass}">確認中</span>
+                        <span>本日</span>
+                    </div>
+                    <div class="task-memo-text">${formatMemoText(task.memo)}</div>
+                </div>
+                <div class="task-buttons">
+                    <button class="complete-btn" title="タスク完了"><i class="fas fa-check"></i></button>
+                    <button class="edit-date-btn" title="日付変更"><i class="fas fa-calendar-alt"></i></button>
+                    <button class="duplicate-btn" title="タスクを複製"><i class="fas fa-copy"></i></button>
+                    <button class="task-delete-btn" title="タスク削除"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+
+            taskItem.addEventListener('click', (e) => {
+                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag') || e.target.closest('.task-memo-text a')) return;
+                taskNameInput.value = task.name;
+                categorySelect.value = '未該当';
+                tabButtons[0].click();
+            });
+
+            taskItem.querySelector('.star-icon').addEventListener('click', (e) => {
+                task.isStarred = !task.isStarred;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.task-tag').addEventListener('click', (e) => {
+                task.isPending = !task.isPending;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.task-memo-text').addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                taskToEditMemo = task;
+                editMemoTextarea.value = task.memo;
+                editMemoModal.style.display = 'flex';
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.complete-btn').addEventListener('click', (e) => {
+                task.completed = true;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.task-delete-btn').addEventListener('click', (e) => {
+                tasksData = tasksData.filter(t => t.id !== task.id);
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.duplicate-btn').addEventListener('click', (e) => {
+                taskToDuplicate = task;
+                duplicateDateInput.value = '';
+                duplicateModal.style.display = 'flex';
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.edit-date-btn').addEventListener('click', (e) => {
+                taskToEditDate = task;
+                editDateInput.value = task.date === '未設定' ? '' : task.date;
+                editDateModal.style.display = 'flex';
+                e.stopPropagation();
+            });
+
+            todayTasksList.appendChild(taskItem);
+        }
+
+        function addUpcomingTaskItem(task) {
+            const taskItem = document.createElement('li');
+            taskItem.classList.add('task-item');
+            
+            const dateDisplay = task.date === '未設定' ? '日付未設定' : `(${task.date})`;
+            const isStarredClass = task.isStarred ? 'active' : '';
+            const pendingTagClass = task.isPending ? 'active' : '';
+
+            taskItem.innerHTML = `
+                <div class="task-details">
+                    <div class="task-header">
+                        <span class="star-icon ${isStarredClass}" data-id="${task.id}"><i class="fas fa-star"></i></span>
+                        <span class="task-name">${task.name}</span>
+                    </div>
+                    <div class="task-meta-info">
+                        <span class="task-tag ${pendingTagClass}">確認中</span>
+                        <span>${dateDisplay}</span>
+                    </div>
+                    <div class="task-memo-text">${formatMemoText(task.memo)}</div>
+                </div>
+                <div class="task-buttons">
+                    <button class="complete-btn" title="タスク完了"><i class="fas fa-check"></i></button>
+                    <button class="edit-date-btn" title="日付変更"><i class="fas fa-calendar-alt"></i></button>
+                    <button class="duplicate-btn" title="タスクを複製"><i class="fas fa-copy"></i></button>
+                    <button class="task-delete-btn" title="タスク削除"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+            
+            taskItem.addEventListener('click', (e) => {
+                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag') || e.target.closest('.task-memo-text a')) return;
+                taskNameInput.value = task.name;
+                categorySelect.value = '未該当';
+                tabButtons[0].click();
+            });
+
+            taskItem.querySelector('.star-icon').addEventListener('click', (e) => {
+                task.isStarred = !task.isStarred;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.task-tag').addEventListener('click', (e) => {
+                task.isPending = !task.isPending;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.task-memo-text').addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                taskToEditMemo = task;
+                editMemoTextarea.value = task.memo;
+                editMemoModal.style.display = 'flex';
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.complete-btn').addEventListener('click', (e) => {
+                task.completed = true;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.task-delete-btn').addEventListener('click', (e) => {
+                tasksData = tasksData.filter(t => t.id !== task.id);
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.duplicate-btn').addEventListener('click', (e) => {
+                taskToDuplicate = task;
+                duplicateDateInput.value = '';
+                duplicateModal.style.display = 'flex';
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.edit-date-btn').addEventListener('click', (e) => {
+                taskToEditDate = task;
+                editDateInput.value = task.date === '未設定' ? '' : task.date;
+                editDateModal.style.display = 'flex';
+                e.stopPropagation();
+            });
+
+            upcomingTasksList.appendChild(taskItem);
+        }
+        
+        function addCompletedTaskItem(task) {
+            const taskItem = document.createElement('li');
+            taskItem.classList.add('task-item', 'completed');
+            
+            const dateDisplay = task.date === '未設定' ? '日付未設定' : `(${task.date})`;
+            const pendingTagClass = task.isPending ? 'active' : '';
+            const isStarredClass = task.isStarred ? 'active' : '';
+
+            taskItem.innerHTML = `
+                <div class="task-details">
+                    <div class="task-header">
+                        <span class="star-icon ${isStarredClass}" data-id="${task.id}"><i class="fas fa-star"></i></span>
+                        <span class="task-name">${task.name}</span>
+                    </div>
+                    <div class="task-meta-info">
+                        <span class="task-tag ${pendingTagClass}">確認中</span>
+                        <span>${dateDisplay}</span>
+                    </div>
+                    <div class="task-memo-text">${formatMemoText(task.memo)}</div>
+                </div>
+                <div class="task-buttons">
+                    <button class="complete-btn" title="未完了に戻す"><i class="fas fa-undo"></i></button>
+                    <button class="task-delete-btn" title="タスク削除"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+
+            taskItem.addEventListener('click', (e) => {
+                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag') || e.target.closest('.task-memo-text a')) return;
+            });
+
+            taskItem.querySelector('.star-icon').addEventListener('click', (e) => {
+                task.isStarred = !task.isStarred;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.task-tag').addEventListener('click', (e) => {
+                task.isPending = !task.isPending;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.task-memo-text').addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                taskToEditMemo = task;
+                editMemoTextarea.value = task.memo;
+                editMemoModal.style.display = 'flex';
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.complete-btn').addEventListener('click', (e) => {
+                task.completed = false;
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.task-delete-btn').addEventListener('click', (e) => {
+                tasksData = tasksData.filter(t => t.id !== task.id);
+                saveTasks();
+                renderTasks();
+                e.stopPropagation();
+            });
+
+            completedTasksList.appendChild(taskItem);
+        }
+
+        let draggingItem = null;
+        todayTasksList.addEventListener('dragstart', (e) => {
+            if (e.target.closest('.task-item')) {
+                draggingItem = e.target.closest('.task-item');
+                setTimeout(() => draggingItem.classList.add('dragging'), 0);
+            }
+        });
+        
+        todayTasksList.addEventListener('dragend', () => {
+            if (draggingItem) {
+                draggingItem.classList.remove('dragging');
+                draggingItem = null;
+                updateTaskOrder();
+            }
+        });
+        
+        todayTasksList.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(todayTasksList, e.clientY);
+            if (afterElement == null) {
+                todayTasksList.appendChild(draggingItem);
+            } else {
+                todayTasksList.insertBefore(draggingItem, afterElement);
+            }
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.task-item.draggable:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function updateTaskOrder() {
+            const today = new Date().toISOString().split('T')[0];
+            const newOrder = Array.from(todayTasksList.children).map(item => {
+                const taskId = parseInt(item.dataset.id);
+                return tasksData.find(task => task.id === taskId);
+            });
+            
+            const otherTasks = tasksData.filter(task => {
+                return task.date !== today || task.completed;
+            });
+            tasksData = [...newOrder, ...otherTasks];
+            saveTasks();
+        }
+
+        function getCategoryFromMemo(memo) {
+            const categories = Array.from(categorySelect.options).map(o => o.value);
+            const foundCategory = categories.find(cat => memo.includes(cat));
+            return foundCategory || '未該当';
+        }
+
+        duplicateCancelBtn.addEventListener('click', () => {
+            duplicateModal.style.display = 'none';
+            taskToDuplicate = null;
+        });
+
+        duplicateConfirmBtn.addEventListener('click', () => {
+            const newDate = duplicateDateInput.value;
+            if (!newDate) {
+                alert('複製するタスクの実行予定日を選択してください。');
+                return;
+            }
+
+            const newTask = {
+                id: Date.now(),
+                name: taskToDuplicate.name,
+                date: newDate,
+                memo: taskToDuplicate.memo,
+                completed: false,
+                isPending: taskToDuplicate.isPending,
+                isStarred: taskToDuplicate.isStarred
+            };
+            tasksData.push(newTask);
+            saveTasks();
+            renderTasks();
+            
+            duplicateModal.style.display = 'none';
+            taskToDuplicate = null;
+            duplicateDateInput.value = '';
+        });
+
+        editDateCancelBtn.addEventListener('click', () => {
+            editDateModal.style.display = 'none';
+            taskToEditDate = null;
+        });
+
+        editDateConfirmBtn.addEventListener('click', () => {
+            const newDate = editDateInput.value;
+            if (!newDate) {
+                alert('新しい実行予定日を選択してください。');
+                return;
+            }
+
+            if (taskToEditDate) {
+                taskToEditDate.date = newDate;
+                saveTasks();
+                renderTasks();
+            }
+            
+            editDateModal.style.display = 'none';
+            taskToEditDate = null;
+            editDateInput.value = '';
+        });
+
+        editMemoCancelBtn.addEventListener('click', () => {
+            editMemoModal.style.display = 'none';
+            taskToEditMemo = null;
+        });
+
+        editMemoConfirmBtn.addEventListener('click', () => {
+            if (taskToEditMemo) {
+                taskToEditMemo.memo = editMemoTextarea.value;
+                saveTasks();
+                renderTasks();
+            }
+            
+            editMemoModal.style.display = 'none';
+            taskToEditMemo = null;
+        });
+
+        async function generateGeminiOutput(type) {
+            const todayHistory = getTodayHistory();
+            if (todayHistory.length === 0) {
+                alert('要約や提案を行うには、今日の作業記録が必要です。');
+                return;
+            }
+
+            aiOutput.style.display = 'block';
+            aiOutputTitle.textContent = type === 'summary' ? '今日の作業の要約' : '次のステップの提案';
+            aiOutputContent.innerHTML = '<div class="loading-indicator">生成中...</div>';
+
+            const prompt = createPrompt(type, todayHistory);
+            
+            let retries = 0;
+            const maxRetries = 5;
+            let delay = 1000;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
+
+            while (retries < maxRetries) {
+                try {
+                    const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                    const payload = { contents: chatHistory };
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429) {
+                        retries++;
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2;
+                        continue;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const output = result.candidates[0].content.parts[0].text;
+                        aiOutputContent.textContent = output;
+                    } else {
+                        aiOutputContent.textContent = '生成に失敗しました。';
+                    }
+                    return;
+                } catch (error) {
+                    console.error('Gemini API呼び出しエラー:', error);
+                    aiOutputContent.textContent = '生成中にエラーが発生しました。';
+                    return;
+                }
+            }
+            aiOutputContent.textContent = 'APIの呼び出し回数が上限に達しました。しばらくしてから再度お試しください。';
+        }
+
+        function createPrompt(type, todayHistory) {
+            const historyText = todayHistory.map(item => `・タスク名: ${item.name}, カテゴリ: ${item.category}, 所要時間: ${formatTime(item.duration)}`).join('\n');
+            const basePrompt = `以下のエンジニアの作業記録を基に、以下のタスクを実行してください。\n\n作業記録:\n${historyText}\n\n`;
+            
+            if (type === 'summary') {
+                return basePrompt + 'タスク内容と所要時間を考慮して、簡潔で分かりやすいプロフェッショナルな要約を作成してください。';
+            } else if (type === 'suggestion') {
+                return basePrompt + '完了したタスクの記録から、次に着手すべき関連性の高いタスクや、作業を効率化するための具体的な次のステップを3つ提案してください。';
+            }
+            return '';
+        }
+
+        function getTodayHistory() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return historyData.filter(item => new Date(item.timestamp) >= today);
+        }
+
+        function updateTimer() {
+            const now = Date.now();
+            const elapsedTime = now - startTime;
+            
+            let totalDuration = elapsedTime;
+            if (currentEditingIndex !== -1) {
+                totalDuration += historyData[currentEditingIndex].duration;
+            }
+
+            timerDisplay.textContent = formatTime(totalDuration);
+        }
+
+        function trimHistoryToSevenDays() {
+            const now = new Date();
+            const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+            historyData = historyData.filter(item => new Date(item.timestamp) >= sevenDaysAgo);
+        }
+
+        function renderHistory() {
+            const openAccordions = Array.from(historyAccordion.querySelectorAll('.accordion-content.open')).map(ac => ac.previousElementSibling.firstElementChild.textContent.trim());
+            
+            historyAccordion.innerHTML = '';
+            const groupedByDate = historyData.reduce((acc, item) => {
+                const date = new Date(item.timestamp).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' });
+                if (!acc[date]) {
+                    acc[date] = [];
+                }
+                acc[date].push(item);
+                return acc;
+            }, {});
+
+            const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+                const dateA = new Date(a.replace(/\//g, '-'));
+                const dateB = new Date(b.replace(/\//g, '-'));
+                return dateB - dateA;
+            });
+
+            sortedDates.forEach(date => {
+                const dayTotal = groupedByDate[date].reduce((sum, item) => sum + item.duration, 0);
+                const accordionItem = document.createElement('div');
+                accordionItem.classList.add('accordion-item');
+
+                const header = document.createElement('div');
+                header.classList.add('accordion-header');
+                header.innerHTML = `
+                    <span>${date}</span>
+                    <span>合計: ${formatTime(dayTotal)}</span>
+                    <i class="fas fa-chevron-right accordion-icon"></i>
+                `;
+
+                const content = document.createElement('ul');
+                content.classList.add('accordion-content');
+                if (openAccordions.includes(date)) {
+                    content.classList.add('open');
+                    header.querySelector('.accordion-icon').classList.add('rotated');
+                }
+
+                groupedByDate[date].forEach((item) => {
+                    addHistoryItem(item, historyData.indexOf(item), content);
+                });
+
+                header.addEventListener('click', () => {
+                    content.classList.toggle('open');
+                    header.querySelector('.accordion-icon').classList.toggle('rotated');
+                });
+                
+                accordionItem.appendChild(header);
+                accordionItem.appendChild(content);
+                historyAccordion.appendChild(accordionItem);
+            });
+        }
+
+        function renderHistoryAndOpenAccordion(targetItem) {
+            renderHistory();
+            const dateToOpen = new Date(targetItem.timestamp).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' });
+            const allHeaders = document.querySelectorAll('.accordion-header');
+            allHeaders.forEach(header => {
+                if (header.firstElementChild.textContent.trim() === dateToOpen) {
+                    const content = header.nextElementSibling;
+                    if (!content.classList.contains('open')) {
+                        content.classList.add('open');
+                        header.querySelector('.accordion-icon').classList.add('rotated');
+                    }
+                }
+            });
+        }
+        
+        function addHistoryItem(item, index, parentList) {
+            const historyItem = document.createElement('li');
+            historyItem.classList.add('history-item');
+
+            const formattedTime = formatTime(item.duration);
+            const totalMinutes = Math.floor(item.duration / (1000 * 60));
+
+            historyItem.innerHTML = `
+                <div class="history-item-details">
+                    <span class="history-item-name">${item.name} <small>(${item.category})</small></span>
+                    <div class="history-item-time">
+                        <span>${formattedTime}</span>
+                        <span>(${totalMinutes}分)</span>
+                    </div>
+                </div>
+                <div class="history-buttons">
+                    <button class="restart-btn" data-index="${index}">再開</button>
+                    <button class="copy-btn" data-minutes="${totalMinutes}">コピー</button>
+                    <button class="delete-btn">削除</button>
+                </div>
+            `;
+
+            historyItem.querySelector('.restart-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isRunning) {
+                    alert('すでにタイマーが作動中です。一度停止してください。');
+                    return;
+                }
+                currentEditingIndex = index;
+                const itemToRestart = historyData[currentEditingIndex];
+                taskNameInput.value = itemToRestart.name;
+                categorySelect.value = itemToRestart.category;
+                startBtn.click();
+            });
+
+            historyItem.querySelector('.copy-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const minutes = e.target.dataset.minutes;
+                copyToClipboard(minutes);
+            });
+
+            historyItem.querySelector('.delete-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                historyData.splice(index, 1);
+                saveHistory();
+                renderHistory();
+                updateStatistics();
+            });
+
+            parentList.appendChild(historyItem);
+        }
+        
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function updateStatistics() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const startOfWeek = new Date();
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            let totalTodayMs = 0;
+            let totalWeekMs = 0;
+
+            historyData.forEach(item => {
+                const itemDate = new Date(item.timestamp);
+                
+                if (itemDate >= today) {
+                    totalTodayMs += item.duration;
+                }
+
+                if (itemDate >= startOfWeek) {
+                    totalWeekMs += item.duration;
+                }
+            });
+
+            totalTodaySpan.textContent = formatTime(totalTodayMs);
+            totalWeekSpan.textContent = formatTime(totalWeekMs);
+            completedTasksSpan.textContent = historyData.length;
+        }
+
+        function copyToClipboard(text) {
+            const el = document.createElement('textarea');
+            el.value = text;
+            el.setAttribute('readonly', '');
+            el.style.position = 'absolute';
+            el.style.left = '-9999px';
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            alert(`"${text}分" がクリップボードにコピーされました。`);
+        }
+
+        function saveHistory() {
+            localStorage.setItem('timerHistory', JSON.stringify(historyData));
+        }
+        function saveTasks() {
+            localStorage.setItem('tasksData', JSON.stringify(tasksData));
+        }
+    </script>
+
+</body>
+</html>
