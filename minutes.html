@@ -290,6 +290,17 @@
             font-size: 0.9rem;
             color: #777;
             cursor: text;
+            max-height: 1.2em; /* 1行分の高さ */
+            overflow: hidden;
+            position: relative;
+        }
+        .task-memo-text.expanded {
+            max-height: none;
+        }
+        .read-more {
+            color: #1a237e;
+            cursor: pointer;
+            text-decoration: underline;
         }
         .modal {
             display: none;
@@ -864,7 +875,7 @@
             const urlRegex = /(https?:\/\/[^\s]+)/g;
             return text.replace(urlRegex, `<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>`);
         }
-
+        
         function addTodayTaskItem(task) {
             const taskItem = document.createElement('li');
             taskItem.classList.add('task-item', 'draggable');
@@ -877,7 +888,7 @@
             taskItem.innerHTML = `
                 <div class="task-details">
                     <div class="task-header">
-                        <span class="star-icon ${isStarredClass}"><i class="fas fa-star"></i></span>
+                        <span class="star-icon ${isStarredClass}" data-id="${task.id}"><i class="fas fa-star"></i></span>
                         <span class="task-name">${task.name}</span>
                     </div>
                     <div class="task-meta-info">
@@ -1053,7 +1064,7 @@
             taskItem.innerHTML = `
                 <div class="task-details">
                     <div class="task-header">
-                        <span class="star-icon ${isStarredClass}"><i class="fas fa-star"></i></span>
+                        <span class="star-icon ${isStarredClass}" data-id="${task.id}"><i class="fas fa-star"></i></span>
                         <span class="task-name">${task.name}</span>
                     </div>
                     <div class="task-meta-info">
