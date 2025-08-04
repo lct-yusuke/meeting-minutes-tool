@@ -283,12 +283,13 @@
         .task-item.dragging {
             opacity: 0.5;
         }
-        .task-memo {
+        .task-memo-text {
             white-space: pre-wrap;
             margin-top: 5px;
             font-style: italic;
             font-size: 0.9rem;
             color: #777;
+            cursor: text;
         }
         .modal {
             display: none;
@@ -316,7 +317,7 @@
         .modal-content h4 {
             margin-top: 0;
         }
-        .modal-content input, .modal-content button {
+        .modal-content input, .modal-content button, .modal-content textarea {
             display: block;
             width: 100%;
             margin-bottom: 10px;
@@ -356,9 +357,8 @@
             font-weight: bold;
             cursor: pointer;
             transition: background-color 0.2s, color 0.2s;
-            line-height: 1em;
-            font-size: 0.8em;
-            height: fit-content;
+            line-height: 1.2;
+            font-size: 0.8rem;
         }
         .task-tag.active {
             background-color: #ffc107;
@@ -439,7 +439,7 @@
             margin-top: 5px;
         }
         .task-meta-info .task-tag {
-            font-size: 0.8rem;
+            font-size: 0.8em;
             line-height: 1.2;
             padding: 2px 8px;
             height: fit-content;
@@ -609,6 +609,18 @@
         </div>
     </div>
 
+    <!-- Edit Memo Modal -->
+    <div id="editMemoModal" class="modal">
+        <div class="modal-content">
+            <h4>タスクメモ編集</h4>
+            <textarea id="editMemoText" rows="5"></textarea>
+            <div class="modal-buttons">
+                <button id="editMemoConfirmBtn" class="timer-button" style="background-color: #3f51b5;">保存</button>
+                <button id="editMemoCancelBtn" class="timer-button" style="background-color: #9e9e9e;">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let timerInterval;
         let startTime;
@@ -618,6 +630,7 @@
         let currentEditingIndex = -1;
         let taskToDuplicate = null;
         let taskToEditDate = null;
+        let taskToEditMemo = null;
 
         const taskNameInput = document.getElementById('taskName');
         const categorySelect = document.getElementById('categorySelect');
@@ -662,6 +675,11 @@
         const editDateInput = document.getElementById('editDateInput');
         const editDateConfirmBtn = document.getElementById('editDateConfirmBtn');
         const editDateCancelBtn = document.getElementById('editDateCancelBtn');
+        
+        const editMemoModal = document.getElementById('editMemoModal');
+        const editMemoTextarea = document.getElementById('editMemoText');
+        const editMemoConfirmBtn = document.getElementById('editMemoConfirmBtn');
+        const editMemoCancelBtn = document.getElementById('editMemoCancelBtn');
 
 
         window.addEventListener('load', () => {
@@ -842,6 +860,11 @@
             completed.forEach(task => addCompletedTaskItem(task));
         }
 
+        function formatMemoText(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, `<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>`);
+        }
+
         function addTodayTaskItem(task) {
             const taskItem = document.createElement('li');
             taskItem.classList.add('task-item', 'draggable');
@@ -854,14 +877,14 @@
             taskItem.innerHTML = `
                 <div class="task-details">
                     <div class="task-header">
-                        <span class="star-icon ${isStarredClass}" data-id="${task.id}"><i class="fas fa-star"></i></span>
+                        <span class="star-icon ${isStarredClass}"><i class="fas fa-star"></i></span>
                         <span class="task-name">${task.name}</span>
                     </div>
                     <div class="task-meta-info">
                         <span class="task-tag ${pendingTagClass}">確認中</span>
                         <span>本日</span>
                     </div>
-                    <span class="task-memo">${task.memo}</span>
+                    <div class="task-memo-text">${formatMemoText(task.memo)}</div>
                 </div>
                 <div class="task-buttons">
                     <button class="complete-btn" title="タスク完了"><i class="fas fa-check"></i></button>
@@ -872,7 +895,7 @@
             `;
 
             taskItem.addEventListener('click', (e) => {
-                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag')) return;
+                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag') || e.target.closest('.task-memo-text a')) return;
                 taskNameInput.value = task.name;
                 categorySelect.value = '未該当';
                 tabButtons[0].click();
@@ -889,6 +912,14 @@
                 task.isPending = !task.isPending;
                 saveTasks();
                 renderTasks();
+                e.stopPropagation();
+            });
+            
+            taskItem.querySelector('.task-memo-text').addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                taskToEditMemo = task;
+                editMemoTextarea.value = task.memo;
+                editMemoModal.style.display = 'flex';
                 e.stopPropagation();
             });
             
@@ -941,7 +972,7 @@
                         <span class="task-tag ${pendingTagClass}">確認中</span>
                         <span>${dateDisplay}</span>
                     </div>
-                    <span class="task-memo">${task.memo}</span>
+                    <div class="task-memo-text">${formatMemoText(task.memo)}</div>
                 </div>
                 <div class="task-buttons">
                     <button class="complete-btn" title="タスク完了"><i class="fas fa-check"></i></button>
@@ -952,7 +983,7 @@
             `;
             
             taskItem.addEventListener('click', (e) => {
-                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag')) return;
+                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag') || e.target.closest('.task-memo-text a')) return;
                 taskNameInput.value = task.name;
                 categorySelect.value = '未該当';
                 tabButtons[0].click();
@@ -969,6 +1000,14 @@
                 task.isPending = !task.isPending;
                 saveTasks();
                 renderTasks();
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.task-memo-text').addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                taskToEditMemo = task;
+                editMemoTextarea.value = task.memo;
+                editMemoModal.style.display = 'flex';
                 e.stopPropagation();
             });
 
@@ -1014,14 +1053,14 @@
             taskItem.innerHTML = `
                 <div class="task-details">
                     <div class="task-header">
-                        <span class="star-icon ${isStarredClass}" data-id="${task.id}"><i class="fas fa-star"></i></span>
+                        <span class="star-icon ${isStarredClass}"><i class="fas fa-star"></i></span>
                         <span class="task-name">${task.name}</span>
                     </div>
                     <div class="task-meta-info">
                         <span class="task-tag ${pendingTagClass}">確認中</span>
                         <span>${dateDisplay}</span>
                     </div>
-                    <span class="task-memo">${task.memo}</span>
+                    <div class="task-memo-text">${formatMemoText(task.memo)}</div>
                 </div>
                 <div class="task-buttons">
                     <button class="complete-btn" title="未完了に戻す"><i class="fas fa-undo"></i></button>
@@ -1030,7 +1069,7 @@
             `;
 
             taskItem.addEventListener('click', (e) => {
-                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag')) return;
+                if (e.target.closest('.task-buttons') || e.target.closest('.star-icon') || e.target.closest('.task-tag') || e.target.closest('.task-memo-text a')) return;
             });
 
             taskItem.querySelector('.star-icon').addEventListener('click', (e) => {
@@ -1044,6 +1083,14 @@
                 task.isPending = !task.isPending;
                 saveTasks();
                 renderTasks();
+                e.stopPropagation();
+            });
+
+            taskItem.querySelector('.task-memo-text').addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                taskToEditMemo = task;
+                editMemoTextarea.value = task.memo;
+                editMemoModal.style.display = 'flex';
                 e.stopPropagation();
             });
             
@@ -1174,6 +1221,22 @@
             editDateModal.style.display = 'none';
             taskToEditDate = null;
             editDateInput.value = '';
+        });
+
+        editMemoCancelBtn.addEventListener('click', () => {
+            editMemoModal.style.display = 'none';
+            taskToEditMemo = null;
+        });
+
+        editMemoConfirmBtn.addEventListener('click', () => {
+            if (taskToEditMemo) {
+                taskToEditMemo.memo = editMemoTextarea.value;
+                saveTasks();
+                renderTasks();
+            }
+            
+            editMemoModal.style.display = 'none';
+            taskToEditMemo = null;
         });
 
         async function generateGeminiOutput(type) {
