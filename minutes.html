@@ -524,22 +524,33 @@
 
                 recognition.onresult = (event) => {
                     const transcriptEl = document.getElementById('transcript');
-                    let fullTranscript = transcriptEl.value;
-                    let interimTranscript = '';
+                    let currentTranscript = '';
+                    let finalTranscript = '';
                     
+                    // 既存の確定済みテキストを取得（最後の暫定結果を除く）
+                    const existingText = transcriptEl.getAttribute('data-final-transcript') || '';
+                    
+                    // 今回のイベントの結果を処理
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         const transcript = event.results[i][0].transcript;
                         
                         if (event.results[i].isFinal) {
-                            if (i === event.resultIndex) {
-                                fullTranscript += transcript + ' ';
-                            }
+                            finalTranscript += transcript + ' ';
                         } else {
-                            interimTranscript += transcript;
+                            currentTranscript += transcript;
                         }
                     }
                     
-                    transcriptEl.value = fullTranscript + interimTranscript;
+                    // 確定済みテキストを更新
+                    if (finalTranscript) {
+                        const newFinalText = existingText + finalTranscript;
+                        transcriptEl.setAttribute('data-final-transcript', newFinalText);
+                        transcriptEl.value = newFinalText + currentTranscript;
+                    } else {
+                        // 暫定結果のみの場合
+                        transcriptEl.value = existingText + currentTranscript;
+                    }
+                    
                     updateCharCount();
                     transcriptEl.scrollTop = transcriptEl.scrollHeight;
                 };
@@ -548,11 +559,15 @@
                     console.error('音声認識エラー:', event.error);
                     if (event.error === 'not-allowed') {
                         showError('マイクへのアクセスが拒否されました。');
+                    } else if (event.error === 'no-speech') {
+                        // 無音エラーは無視
+                        console.log('無音を検出');
                     }
                 };
 
                 recognition.onend = () => {
                     if (isRecording) {
+                        // 録音中なら自動的に再開
                         setTimeout(() => {
                             if (isRecording) {
                                 try {
@@ -563,6 +578,13 @@
                             }
                         }, 500);
                     } else {
+                        // 録音停止時、確定済みテキストをvalueに設定
+                        const transcriptEl = document.getElementById('transcript');
+                        const finalText = transcriptEl.getAttribute('data-final-transcript') || '';
+                        transcriptEl.value = finalText.trim();
+                        transcriptEl.removeAttribute('data-final-transcript');
+                        updateCharCount();
+                        
                         document.getElementById('status').textContent = '待機中';
                         document.getElementById('status').className = 'status status-idle';
                     }
@@ -584,6 +606,10 @@
 
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(() => {
+                    // 録音開始前に確定済みテキストをクリア
+                    const transcriptEl = document.getElementById('transcript');
+                    transcriptEl.setAttribute('data-final-transcript', transcriptEl.value || '');
+                    
                     isRecording = true;
                     try {
                         recognition.start();
